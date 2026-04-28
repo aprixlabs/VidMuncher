@@ -5,7 +5,7 @@
 [![Made by Non-Developer](https://img.shields.io/badge/Made%20by-Non--Developer-red.svg)]() [![Downloads](https://img.shields.io/github/downloads/aprixlabs/VidMuncher/total.svg?color=brightgreen)]()
 
 
-VidMuncher exists because I got tired of wrestling with video codecs that certain popular video editing software *cough* refuses to play nice with. I'm not a real developer — just someone who got fed up with the "codec not supported" dance and decided to do something about it. Then I added GPU acceleration. Then AV1 support. Then an auto-updater. At some point this stopped being a "simple tool" and started being a problem.
+I built this because a certain multi-billion dollar video editor throws a tantrum over unsupported codecs. I'm not a real developer, but out of pure, unadulterated spite, I accidentally engineered a hardware-accelerated, self-updating media devouring monster. It was supposed to be a simple 10-line script. Now it has transcode support and a GUI. Please use it so my suffering isn't in vain.
 
 ## What It Does
 
@@ -13,7 +13,7 @@ VidMuncher exists because I got tired of wrestling with video codecs that certai
 - **Encodes to H.264, H.265, or AV1** — NVIDIA, AMD, Intel QuickSync, or CPU. Falls back silently if your GPU refuses to cooperate
 - **Audio extraction** for when you just want the audio
 - **Self-configuring** — downloads yt-dlp and FFmpeg automatically on first launch. No manual setup required
-- **Updater** — keeps Apps, yt-dlp and FFmpeg current
+- **Updater** — keeps the App, yt-dlp and FFmpeg current
 
 ## Getting Started
 
