@@ -21,6 +21,10 @@ VidMuncher exists because I got tired of wrestling with video codecs that certai
 2. Extract and run `VidMuncher.exe`
 3. It sets itself up. You're done.
 
+> **⚠️ Windows SmartScreen Warning**
+> Because this is an indie, open-source project without a paid Code Signing Certificate, Windows SmartScreen may flag the `.exe` as an "unrecognized app". This is completely normal.
+> To run VidMuncher, click **"More info"** -> **"Run anyway"**.
+
 ### From Source
 ```bash
 git clone https://github.com/aprixlabs/VidMuncher.git
