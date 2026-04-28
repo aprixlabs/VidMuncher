@@ -13,7 +13,7 @@ I built this because a certain multi-billion dollar video editor throws a tantru
 
 ## What It Does
 
-- **Downloads videos** from YouTube and 1000+ other sites via yt-dlp
+- **Downloads videos** from YouTube and 1000+ other sites via yt-dlp. [View yt-dlp Supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
 - **Encodes to H.264, H.265, or AV1** — NVIDIA, AMD, Intel QuickSync, or CPU. Falls back silently if your GPU refuses to cooperate
 - **Audio extraction** for when you just want the audio
 - **Self-configuring** — downloads yt-dlp and FFmpeg automatically on first launch. No manual setup required
@@ -52,6 +52,6 @@ Personal use only. Don't download things you shouldn't. [GPL-3.0 License](LICENS
 
 ## Thanks To
 
-- **yt-dlp** — for doing the actual hard part
-- **FFmpeg** — for doing the other actual hard part
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** — for doing the actual hard part
+- **[FFmpeg](https://ffmpeg.org)** — for doing the other actual hard part
 - **My video editor** — for being so picky about codecs that I had to build this
