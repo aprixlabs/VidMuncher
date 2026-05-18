@@ -5,7 +5,7 @@
 
 **A Video Downloader Born from Pure Frustration**
 
-[![Made by Non-Developer](https://img.shields.io/badge/Made%20by-Non--Developer-red.svg)]() [![Downloads](https://img.shields.io/github/downloads/aprixlabs/VidMuncher/total.svg?color=brightgreen&label=Downloads)]()
+[![Made by Non-Developer](https://img.shields.io/badge/Made%20by-Non--Developer-red.svg)]() [![Downloads](https://img.shields.io/github/downloads/aprixlabs/VidMuncher/total.svg?color=brightgreen&label=Downloads&v=1)]()
 
 </div>
 
