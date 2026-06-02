@@ -5,6 +5,9 @@
 
 **A Video Downloader Born from Pure Frustration**
 
+
+[![License](https://img.shields.io/github/license/aprixlabs/VidMuncher)](https://github.com/aprixlabs/VidMuncher/blob/main/LICENSE)
+[![Latest Release](https://img.shields.io/github/v/release/aprixlabs/VidMuncher)](https://github.com/aprixlabs/VidMuncher/releases)
 [![Downloads](https://img.shields.io/github/downloads/aprixlabs/VidMuncher/total.svg?color=brightgreen&label=Downloads&v=1)]()
 
 </div>
