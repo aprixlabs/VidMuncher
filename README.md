@@ -59,7 +59,7 @@ Personal use only. Don't download things you shouldn't. [GPL-3.0 License](LICENS
 - **[FFmpeg](https://ffmpeg.org)** — for doing the other actual hard part
 - **My video editor** — for being so picky about codecs that I had to build this
 
-## Support alir.io
+## Support VidMuncher
 Keep my throat from getting scratchy:D
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/aprixlabs)
