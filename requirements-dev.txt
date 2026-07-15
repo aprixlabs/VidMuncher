@@ -1,0 +1,4 @@
+# VidMuncher Dev Requirements
+# Tools used for building and packaging only — not needed at runtime
+
+PyInstaller>=5.0.0

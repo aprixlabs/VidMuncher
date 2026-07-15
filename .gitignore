@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+.venv_linux/
+venv/
+env/
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Logs and temp
+*.log
+*.tmp
+*.temp
+
+# Backup files
+*.bak
+
+# Runtime data
+history.vmunch
+
+# Agents
+.agent/
+.agents/
+AGENTS.md
+.claude/
+
+# Bundled binaries
+bin/ffmpeg
+bin/ffmpeg.exe
+bin/yt-dlp
+bin/yt-dlp.exe
+
+# Internal docs
+docs/
