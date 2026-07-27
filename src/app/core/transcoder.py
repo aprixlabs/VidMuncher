@@ -9,35 +9,32 @@ from app.config import (
     ENCODER_TEST_TIMEOUT,
     AUDIO_CODEC,
     AUDIO_BITRATE,
-    FFMPEG_COMMON_ARGS,
+    TRANSCODE_COMMON_ARGS,
     ENCODER_MAPPING,
-    ENCODER_PROGRESS_MESSAGES
+    ENCODER_PROGRESS_MESSAGES,
+    CODEC_CPU_FALLBACK
 )
-from app.utils import debug_print
+from app.utils.debug import debug_print
 
-class EncoderManager:
-    """Manages FFmpeg encoding operations and encoder detection"""
-    
+class Transcoder:
+
     def __init__(self):
         self.active_processes = []
 
     def get_encoder_config(self, encoder_selection):
-        """Get encoder configuration based on GUI selection"""
         return ENCODER_MAPPING.get(encoder_selection)
 
     def test_encoder_availability(self, encoder_config):
-        """Test if specific encoder is available"""
         try:
-            test_cmd = [str(FFMPEG_PATH)]
-
-            if encoder_config.get("hwaccel"):
-                test_cmd.extend(["-hwaccel", encoder_config["hwaccel"]])
-
-            test_cmd.extend([
-                "-f", "lavfi", "-i", "testsrc=duration=1:size=320x240:rate=1", "-t", "1",
+            # -pix_fmt required for av1_nvenc testsrc output
+            test_cmd = [
+                str(FFMPEG_PATH),
+                "-f", "lavfi", "-i", "testsrc=duration=1:size=320x240:rate=1",
+                "-t", "1",
+                "-pix_fmt", "yuv420p",
                 "-c:v", encoder_config["encoder"],
                 "-f", "null", "-"
-            ])
+            ]
 
             debug_print(f"Testing encoder: {encoder_config['name']}")
 
@@ -54,6 +51,11 @@ class EncoderManager:
                 return True
             else:
                 debug_print(f"Encoder not available: {encoder_config['name']}")
+                if result.stderr:
+                    # Keep last 3 lines for error context
+                    stderr_tail = result.stderr.decode(errors='replace').strip().splitlines()
+                    for line in stderr_tail[-3:]:
+                        debug_print(f"  FFmpeg stderr: {line}")
                 return False
 
         except Exception as e:
@@ -62,7 +64,6 @@ class EncoderManager:
     
 
     def build_encoding_command_v2(self, input_file, output_file, encoder_config):
-        """Construct the FFmpeg command list for the given encoder configuration."""
         cmd = [str(FFMPEG_PATH)]
 
         if encoder_config.get("hwaccel"):
@@ -84,14 +85,13 @@ class EncoderManager:
 
         cmd.extend(["-c:a", AUDIO_CODEC, "-b:a", AUDIO_BITRATE])
 
-        cmd.extend(FFMPEG_COMMON_ARGS)
+        cmd.extend(TRANSCODE_COMMON_ARGS)
 
         cmd.extend(["-y", output_file])
 
         return cmd
     
     def encode_video(self, input_file, output_file, encoder_selection="H.264 (CPU)", progress_callback=None, cancel_check=None):
-        """Encode a video file, reporting progress via callback. Falls back to CPU if the selected encoder is unavailable."""
         try:
             encoder_config = self.get_encoder_config(encoder_selection)
 
@@ -100,10 +100,12 @@ class EncoderManager:
 
             if not self.test_encoder_availability(encoder_config):
                 original_name = encoder_config['name']
-                debug_print(f"Encoder {original_name} not available, falling back to CPU...")
+                codec = encoder_config.get('codec', 'h264')
+                fallback_key = CODEC_CPU_FALLBACK.get(codec, "H.264 (CPU)")
+                debug_print(f"Encoder {original_name} not available, falling back to {fallback_key}...")
                 if progress_callback:
-                    progress_callback(f"{original_name} unavailable, falling back to CPU encoder...", 0)
-                encoder_selection = "H.264 (CPU)"
+                    progress_callback(f"{original_name} unavailable, falling back to {fallback_key}...", 0)
+                encoder_selection = fallback_key
                 encoder_config = self.get_encoder_config(encoder_selection)
                 if not self.test_encoder_availability(encoder_config):
                     return False, "No suitable encoder available"
@@ -187,7 +189,6 @@ class EncoderManager:
             return False, error_msg
     
     def _extract_duration(self, line):
-        """Extract video duration from FFmpeg output"""
         try:
             duration_match = re.search(r'Duration: (\d+):(\d+):(\d+)\.(\d+)', line)
             if duration_match:
@@ -198,7 +199,6 @@ class EncoderManager:
         return None
     
     def _extract_progress(self, line, duration_seconds):
-        """Extract encoding progress from FFmpeg output"""
         try:
             time_match = re.search(r'time=(\d+):(\d+):(\d+)\.(\d+)', line)
             if time_match:
@@ -211,7 +211,6 @@ class EncoderManager:
         return None
     
     def cleanup_processes(self):
-        """Clean up active encoding processes"""
         for process in self.active_processes[:]:
             try:
                 if process.poll() is None:
@@ -222,7 +221,6 @@ class EncoderManager:
                 pass
     
     def cancel_encoding(self):
-        """Cancel all active encoding processes"""
         debug_print("Cancelling all encoding processes...")
 
         try:
@@ -238,4 +236,4 @@ class EncoderManager:
 
         self.cleanup_processes()
 
-encoder_manager = EncoderManager()
+transcoder = Transcoder()

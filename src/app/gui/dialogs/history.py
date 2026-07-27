@@ -17,7 +17,8 @@ from app.config import (
     HISTORY_FILE_PATH, HEADER_BG_COLOR, WINDOW_BG_COLOR, TEXT_COLOR,
     BUTTON_COLOR, BUTTON_ACTIVE_COLOR, BUTTON_DISABLED_COLOR, HISTORY_ICON_PATH
 )
-from app.utils import debug_print, format_file_size
+from app.utils.debug import debug_print
+from app.utils.formatting import format_file_size
 
 STATUS_COMPLETED = "completed"
 STATUS_ERROR     = "error"
@@ -29,20 +30,16 @@ _STATUS_STYLE = {
     STATUS_CANCELLED: ("Canceled",  TEXT_COLOR),
 }
 
-# Same color palette as Tkinter version for consistency
-_ITEM_BG       = "#5B012A"   
+_ITEM_BG       = "#5B012A"
 _ITEM_BG_SEL   = "#6b0038"
 
-class DownloadHistoryManager:
-    """Manages download history persistence and the Qt history dialog."""
+class HistoryDialog:
 
     def __init__(self, main_gui):
         self.gui = main_gui
         self.history = self._load_history()
 
-    # ------------------------------------------------------------------ #
     # Persistence
-    # ------------------------------------------------------------------ #
 
     def _load_history(self) -> list:
         if os.path.exists(HISTORY_FILE_PATH):
@@ -97,12 +94,22 @@ class DownloadHistoryManager:
         self.history = []
         self._save_history()
 
-    # ------------------------------------------------------------------ #
     # Dialog entry point
-    # ------------------------------------------------------------------ #
 
     def show_history_dialog(self):
+        # Apply dark overlay to main window
+        if hasattr(self.gui, 'central_widget'):
+            overlay = QWidget(self.gui.central_widget)
+            overlay.setGeometry(self.gui.central_widget.rect())
+            overlay.setStyleSheet("background-color: rgba(0, 0, 0, 150);")
+            overlay.show()
+
         dlg = QDialog(self.gui)
+        # Center the dialog on top of the parent window
+        parent_geo = self.gui.geometry()
+        x = parent_geo.x() + (parent_geo.width() - 620) // 2
+        y = parent_geo.y() + (parent_geo.height() - (520 + 30)) // 2
+        dlg.move(x, y)
         dlg.setWindowTitle("Download History")
         dlg.setFixedSize(620, 520 + 30)
         dlg.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
@@ -119,7 +126,7 @@ class DownloadHistoryManager:
             QFrame#MainFrame {{
                 background-color: {HEADER_BG_COLOR};
                 border-radius: 10px;
-                border: 1px solid #1a000e;
+                
             }}
         """)
         main_layout.addWidget(main_frame)
@@ -129,7 +136,7 @@ class DownloadHistoryManager:
         frame_layout.setSpacing(0)
 
         title_bar = QWidget(main_frame)
-        title_bar.setFixedHeight(30)
+        title_bar.setFixedHeight(35)
         title_bar.setStyleSheet("""
             QWidget {
                 background-color: #2b2b2b;
@@ -148,8 +155,8 @@ class DownloadHistoryManager:
         title_layout.addWidget(title_lbl_tb, 1)
 
         close_btn_tb = QPushButton("", title_bar)
-        close_btn_tb.setFixedSize(12, 12)
-        close_btn_tb.setStyleSheet("QPushButton { border-radius: 6px; background-color: #FF5F56; border: none; } QPushButton:hover { background-color: #E0443E; }")
+        close_btn_tb.setFixedSize(14, 14)
+        close_btn_tb.setStyleSheet("QPushButton { border-radius: 7px; background-color: #FF5F56; border: none; } QPushButton:hover { background-color: #E0443E; }")
         close_btn_tb.setCursor(Qt.PointingHandCursor)
         close_btn_tb.clicked.connect(dlg.reject)
         title_layout.addWidget(close_btn_tb)
@@ -169,14 +176,13 @@ class DownloadHistoryManager:
         layout.setSpacing(0)
         frame_layout.addWidget(content)
 
-        # Top Bar Container
         top_widget = QWidget(content)
         top_widget.setStyleSheet(f"background-color: {HEADER_BG_COLOR};")
         top_bar = QHBoxLayout(top_widget)
         top_bar.setContentsMargins(20, 18, 20, 18)
         
         icon_lbl = QLabel()
-        icon_lbl.setPixmap(QIcon(str(HISTORY_ICON_PATH)).pixmap(24, 24))
+        icon_lbl.setPixmap(QIcon(HISTORY_ICON_PATH.as_posix()).pixmap(24, 24))
         icon_lbl.setStyleSheet("background: transparent; border: none;")
         
         title_lbl = QLabel("Download History")
@@ -214,7 +220,6 @@ class DownloadHistoryManager:
         
         layout.addWidget(top_widget)
 
-        # Table Widget
         self.table = QTableWidget()
         self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels(["", "File Name", "Date", "Size", "Status"])
@@ -259,9 +264,9 @@ class DownloadHistoryManager:
             }}
             QScrollBar:vertical {{
                 border: none;
-                background-color: #1e0010; /* Fills the header gap exactly */
+                background-color: #1e0010;
                 width: 6px;
-                padding-top: 34px; /* Restricts the handle and track from climbing into the header */
+                padding-top: 34px;
             }}
             QScrollBar::handle:vertical {{
                 background-color: {BUTTON_COLOR};
@@ -274,7 +279,7 @@ class DownloadHistoryManager:
                 border: none;
             }}
             QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
-                background-color: {WINDOW_BG_COLOR}; /* The track below the header */
+                background-color: {WINDOW_BG_COLOR};
             }}
         """)
 
@@ -283,18 +288,16 @@ class DownloadHistoryManager:
         header.setSectionResizeMode(QHeaderView.Interactive)
         header.setCascadingSectionResizes(True)
         header.setStretchLastSection(True)
-        header.setMinimumSectionSize(17) # Allow the dummy column to be 17px
-        
+        header.setMinimumSectionSize(17)
+
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        
-        # Setup manual sort arrow rendering
+
         header.sortIndicatorChanged.connect(self._on_sort_changed)
         header.sectionResized.connect(self._on_section_resized)
-        
-        # Set initial widths using the dummy column (17px) as left padding
+
         self.table.setColumnWidth(0, 17)
-        header.setSectionResizeMode(0, QHeaderView.Fixed) # Prevent resizing the margin
-        self.table.setColumnWidth(1, 248) # 265 - 17
+        header.setSectionResizeMode(0, QHeaderView.Fixed)
+        self.table.setColumnWidth(1, 248)
         self.table.setColumnWidth(2, 120)
         self.table.setColumnWidth(3, 70)
         self.table.setColumnWidth(4, 85)
@@ -304,15 +307,19 @@ class DownloadHistoryManager:
         self.table.itemDoubleClicked.connect(self._on_double_click)
 
         layout.addWidget(self.table)
-        
+
         self._populate_table()
-        
+
         dlg.exec()
+
+        # Remove overlay when dialog closes
+        if hasattr(self.gui, 'central_widget'):
+            overlay.hide()
+            overlay.deleteLater()
 
     def _on_section_resized(self, logicalIndex, oldSize, newSize):
         if getattr(self, '_resizing_guard', False): return
-        
-        # Enforce maximum widths on all resizable columns to prevent crushing columns on their right
+
         max_widths = {1: 350, 2: 250, 3: 150}
         
         if logicalIndex in max_widths and newSize > max_widths[logicalIndex]:
@@ -330,24 +337,22 @@ class DownloadHistoryManager:
             
             fp = entry.get("file_path", "")
             raw_name = os.path.basename(fp) if fp else (entry.get("title") or "Unknown")
-            
-            # Dummy item for left padding column
+
             dummy_item = QTableWidgetItem("")
             dummy_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-            
+
             name_item = QTableWidgetItem(raw_name)
             name_item.setFont(QFont("Poppins", 9))
-            name_item.setData(Qt.UserRole, entry) # Store entry data
-            
+            name_item.setData(Qt.UserRole, entry)
+
             date_item = QTableWidgetItem(entry.get("date", "—"))
             date_item.setFont(QFont("Poppins", 8))
             date_item.setForeground(QBrush(QColor("#aaaaaa")))
-            
+
             size_item = QTableWidgetItem(entry.get("size", "—"))
             size_item.setFont(QFont("Poppins", 8))
             size_item.setForeground(QBrush(QColor("#aaaaaa")))
-            
-            # For correct sorting of size, set numeric data
+
             size_item.setData(Qt.UserRole, entry.get("size_bytes", 0))
             
             status_key = entry.get("status", STATUS_COMPLETED)
@@ -365,15 +370,13 @@ class DownloadHistoryManager:
 
         self.table.setSortingEnabled(True)
         self.count_lbl.setText(f"{len(self.history)} item(s)")
-        
-        # Trigger header update to show the arrow on the currently sorted column
+
         header = self.table.horizontalHeader()
         self._on_sort_changed(header.sortIndicatorSection(), header.sortIndicatorOrder())
 
     def _on_sort_changed(self, index, order):
         if getattr(self, '_sorting_guard', False): return
-        
-        # Disable sorting on the dummy padding column
+
         if index == 0:
             self._sorting_guard = True
             self.table.horizontalHeader().setSortIndicator(1, order)
@@ -390,9 +393,7 @@ class DownloadHistoryManager:
                 else:
                     item.setText(labels[i])
 
-    # ------------------------------------------------------------------ #
     # Context menu & Actions
-    # ------------------------------------------------------------------ #
 
     def _get_selected_entries(self):
         entries = []
@@ -415,7 +416,7 @@ class DownloadHistoryManager:
             QMenu {{
                 background-color: {HEADER_BG_COLOR};
                 color: {TEXT_COLOR};
-                border: 1px solid {WINDOW_BG_COLOR};
+                border: none;
             }}
             QMenu::item {{
                 padding: 6px 20px;
@@ -487,9 +488,7 @@ class DownloadHistoryManager:
             else:
                 subprocess.run(["xdg-open", folder], check=False)
 
-    # ------------------------------------------------------------------ #
     # Remove / clear
-    # ------------------------------------------------------------------ #
 
     def _confirm_remove_selected(self):
         entries = self._get_selected_entries()
@@ -544,7 +543,7 @@ class DownloadHistoryManager:
                     try:
                         os.remove(fp)
                     except Exception as e:
-                        debug_print(f"Failed to delete {{fp}}: {{e}}")
+                        debug_print(f"Failed to delete {fp}: {e}")
             self.remove_entry_by_ref(entry)
             
         self._populate_table()

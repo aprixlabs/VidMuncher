@@ -38,7 +38,7 @@ class SetupDialog(QDialog):
             QFrame#MainFrame {{
                 background-color: {HEADER_BG_COLOR};
                 border-radius: 10px;
-                border: 1px solid #1a000e;
+                
             }}
         """)
         main_layout.addWidget(main_frame)
@@ -47,7 +47,6 @@ class SetupDialog(QDialog):
         frame_layout.setContentsMargins(0, 0, 0, 0)
         frame_layout.setSpacing(0)
 
-        # Title bar
         title_bar = QWidget(main_frame)
         title_bar.setFixedHeight(30)
         title_bar.setStyleSheet("""
@@ -86,7 +85,6 @@ class SetupDialog(QDialog):
         title_bar.mousePressEvent = mp
         frame_layout.addWidget(title_bar)
 
-        # Content
         content = QWidget(main_frame)
         layout = QVBoxLayout(content)
         layout.setContentsMargins(15, 15, 15, 15)
@@ -128,7 +126,7 @@ class SetupDialog(QDialog):
         QTimer.singleShot(100, self.start_check)
 
     def start_check(self):
-        from app.updater import updater
+        from app.core.updater import updater
         self.updater = updater
         self.updater.check_updates(
             lambda h, yl, yr, fl, fr, e:

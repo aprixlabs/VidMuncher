@@ -11,23 +11,32 @@ from app.config import (
     ICON_PNG_PATH, KOFI_LOGO_PATH, SOCIABUZZ_LOGO_PATH,
     WINDOW_WIDTH, WINDOW_HEIGHT
 )
-from app.updater import UpdateUIManager
-from app.utils import debug_print
+from app.gui.dialogs.update import UpdateFlow
+from app.utils.debug import debug_print
 
 
-class AboutDialogManager:
+class AboutDialog:
     """Manages the About dialog and its update check flow."""
 
     def __init__(self, main_gui):
         self.gui = main_gui
 
-    # ------------------------------------------------------------------ #
-    # Entry point
-    # ------------------------------------------------------------------ #
 
     def show_about_dialog(self):
         parent = self.gui
+
+        # Apply dark overlay to main window
+        if hasattr(parent, 'central_widget'):
+            overlay = QWidget(parent.central_widget)
+            overlay.setGeometry(parent.central_widget.rect())
+            overlay.setStyleSheet("background-color: rgba(0, 0, 0, 150);")
+            overlay.show()
+
         dlg = QDialog(parent)
+        parent_geo = parent.geometry()
+        x = parent_geo.x() + (parent_geo.width() - 420) // 2
+        y = parent_geo.y() + (parent_geo.height() - (480 + 30)) // 2
+        dlg.move(x, y)
         dlg.setMinimumSize(420, 480 + 30)
         dlg.setMaximumSize(420, 480 + 30)
         dlg.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
@@ -44,7 +53,7 @@ class AboutDialogManager:
             QFrame#MainFrame {{
                 background-color: {HEADER_BG_COLOR};
                 border-radius: 10px;
-                border: 1px solid #1a000e;
+                
             }}
         """)
         main_layout.addWidget(main_frame)
@@ -54,7 +63,7 @@ class AboutDialogManager:
         frame_layout.setSpacing(0)
 
         title_bar = QWidget(main_frame)
-        title_bar.setFixedHeight(30)
+        title_bar.setFixedHeight(35)
         title_bar.setStyleSheet("""
             QWidget {
                 background-color: #2b2b2b;
@@ -73,8 +82,8 @@ class AboutDialogManager:
         title_layout.addWidget(title_lbl_tb, 1)
 
         close_btn_tb = QPushButton("", title_bar)
-        close_btn_tb.setFixedSize(12, 12)
-        close_btn_tb.setStyleSheet("QPushButton { border-radius: 6px; background-color: #FF5F56; border: none; } QPushButton:hover { background-color: #E0443E; }")
+        close_btn_tb.setFixedSize(14, 14)
+        close_btn_tb.setStyleSheet("QPushButton { border-radius: 7px; background-color: #FF5F56; border: none; } QPushButton:hover { background-color: #E0443E; }")
         close_btn_tb.setCursor(Qt.PointingHandCursor)
         close_btn_tb.clicked.connect(dlg.reject)
         title_layout.addWidget(close_btn_tb)
@@ -94,13 +103,13 @@ class AboutDialogManager:
         layout.setSpacing(0)
         frame_layout.addWidget(content)
 
-        # ── App icon ──────────────────────────────────────────────────
+        # App icon
         if ICON_PNG_PATH.exists():
             try:
                 icon_lbl = QLabel()
                 icon_lbl.setAlignment(Qt.AlignCenter)
                 icon_lbl.setStyleSheet("background: transparent;")
-                pm = QPixmap(str(ICON_PNG_PATH)).scaled(
+                pm = QPixmap(ICON_PNG_PATH.as_posix()).scaled(
                     80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation
                 )
                 icon_lbl.setPixmap(pm)
@@ -110,7 +119,7 @@ class AboutDialogManager:
             except Exception as e:
                 debug_print(f"Failed to load about icon: {e}")
 
-        # ── App title (clickable) ─────────────────────────────────────
+        # App title
         title_lbl = QLabel(f"VidMuncher {APP_VERSION}")
         title_lbl.setFont(QFont("Poppins", 14, QFont.Bold))
         title_lbl.setAlignment(Qt.AlignCenter)
@@ -153,7 +162,7 @@ class AboutDialogManager:
         desc_layout.addWidget(link_lbl)
         desc_layout.addSpacing(10)
 
-        # "Powered by yt-dlp and FFmpeg"
+        # Dependencies notice
         powered_row = QWidget()
         powered_row.setStyleSheet("background: transparent;")
         pr_layout = QHBoxLayout(powered_row)
@@ -186,7 +195,7 @@ class AboutDialogManager:
         desc_layout.addWidget(powered_row)
         desc_layout.addSpacing(15)
 
-        # "Copyright © 2026 Aprix Labs"
+        # Copyright notice
         cr_row = QWidget()
         cr_row.setStyleSheet("background: transparent;")
         cr_layout = QHBoxLayout(cr_row)
@@ -209,14 +218,14 @@ class AboutDialogManager:
         desc_layout.addWidget(cr_row)
         layout.addWidget(desc_widget)
 
-        # ── Support section ───────────────────────────────────────────
+        # Support section
         support_title = QLabel("Support Me On")
         support_title.setFont(QFont("Poppins", 11, QFont.Bold))
         support_title.setAlignment(Qt.AlignCenter)
         support_title.setStyleSheet("background: transparent;")
         layout.addSpacing(20)
         layout.addWidget(support_title)
-        layout.addSpacing(5)
+        layout.addSpacing(15)
 
         logos_row = QWidget()
         logos_row.setStyleSheet("background: transparent;")
@@ -227,7 +236,7 @@ class AboutDialogManager:
 
         if KOFI_LOGO_PATH.exists():
             try:
-                kofi_pm = QPixmap(str(KOFI_LOGO_PATH))
+                kofi_pm = QPixmap(KOFI_LOGO_PATH.as_posix())
                 h = 25
                 w = int(kofi_pm.width() * h / kofi_pm.height())
                 kofi_pm = kofi_pm.scaled(w, h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -243,7 +252,7 @@ class AboutDialogManager:
 
         if SOCIABUZZ_LOGO_PATH.exists():
             try:
-                socia_pm = QPixmap(str(SOCIABUZZ_LOGO_PATH))
+                socia_pm = QPixmap(SOCIABUZZ_LOGO_PATH.as_posix())
                 h = 25
                 w = int(socia_pm.width() * h / socia_pm.height())
                 socia_pm = socia_pm.scaled(w, h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -259,7 +268,7 @@ class AboutDialogManager:
 
         layout.addWidget(logos_row)
 
-        # ── Update button ─────────────────────────────────────────────
+        # Update button
         update_btn = QPushButton("Check for update")
         update_btn.setFixedSize(220, 35)
         update_btn.setCursor(QCursor(Qt.PointingHandCursor))
@@ -279,8 +288,8 @@ class AboutDialogManager:
             }}
         """)
 
-        # Delegate all update logic to UpdateUIManager in updater.py
-        update_ui = UpdateUIManager(self.gui, update_btn)
+        # Delegate update logic to updater
+        update_ui = UpdateFlow(self.gui, update_btn)
         update_btn.clicked.connect(lambda: update_ui.start_check(dlg))
 
         layout.addSpacing(25)
@@ -297,4 +306,9 @@ class AboutDialogManager:
         layout.addSpacing(25)
 
         dlg.exec()
+
+        # Remove overlay when dialog closes
+        if hasattr(parent, 'central_widget'):
+            overlay.hide()
+            overlay.deleteLater()
 

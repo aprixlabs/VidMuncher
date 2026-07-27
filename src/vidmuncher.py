@@ -18,6 +18,13 @@ from app.gui import run
 def main():
     """Main entry point for VidMuncher application"""
     try:
+        # Patch for Qt plugin path in venv
+        from PySide6.QtCore import QCoreApplication
+        site_packages = os.path.join(os.path.dirname(os.path.dirname(sys.executable)), 'Lib', 'site-packages')
+        qt_plugins_path = os.path.join(site_packages, 'PySide6', 'plugins')
+        if os.path.exists(qt_plugins_path):
+            QCoreApplication.addLibraryPath(qt_plugins_path)
+
         debug_print(f"Starting {APP_NAME} {APP_VERSION}")
         debug_print(f"Debug mode: {DEBUG_MODE}")
         debug_print(f"Python: {sys.version}")

@@ -5,7 +5,10 @@
 
 **A Video Downloader Born from Pure Frustration**
 
-[![Made by Non-Developer](https://img.shields.io/badge/Made%20by-Non--Developer-red.svg)]() [![Downloads](https://img.shields.io/github/downloads/aprixlabs/VidMuncher/total.svg?color=brightgreen&label=Downloads)]()
+
+[![License](https://img.shields.io/github/license/aprixlabs/VidMuncher)](https://github.com/aprixlabs/VidMuncher/blob/main/LICENSE)
+[![Latest Release](https://img.shields.io/github/v/release/aprixlabs/VidMuncher)](https://github.com/aprixlabs/VidMuncher/releases)
+[![Downloads](https://img.shields.io/github/downloads/aprixlabs/VidMuncher/total.svg?color=brightgreen&label=Downloads&v=1)]()
 
 </div>
 
@@ -55,3 +58,8 @@ Personal use only. Don't download things you shouldn't. [GPL-3.0 License](LICENS
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** — for doing the actual hard part
 - **[FFmpeg](https://ffmpeg.org)** — for doing the other actual hard part
 - **My video editor** — for being so picky about codecs that I had to build this
+
+## Support VidMuncher
+Keep my throat from getting scratchy:D
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/aprixlabs)

@@ -1,6 +1,6 @@
 """
 VidMuncher Downloader Module
-Contains yt-dlp download logic and progress tracking functionality
+yt-dlp download logic and progress tracking.
 """
 
 import re
@@ -8,7 +8,6 @@ import json
 import subprocess
 import time
 import requests
-from PIL import Image
 
 from app.config import (
     YTDLP_PATH,
@@ -21,21 +20,21 @@ from app.config import (
     THUMBNAIL_TIMEOUT,
     PROGRESS_UPDATE_THRESHOLD
 )
-from app.utils import debug_print, get_extension_from_preset, get_unique_filename, get_unique_filename_without_ext, find_downloaded_file
+from app.utils.debug import debug_print
+from app.utils.filesystem import get_extension_from_preset, get_unique_filename, get_unique_filename_without_ext, find_downloaded_file
 
 class VideoAnalyzer:
-    """Handles video analysis and information extraction"""
+    """Handles video analysis and information extraction."""
 
     def __init__(self):
         self.active_processes = []
 
     def analyze_video(self, url, progress_callback=None):
-        """Analyze video URL and extract information"""
+        """Extract video information via yt-dlp analyze."""
         try:
             if progress_callback:
                 progress_callback("Getting information...", 0)
-            
-            # Build and run the analyze command
+
             analyze_cmd = self._build_analyze_command(url)
             
             debug_print(f"Analyze command: {' '.join(analyze_cmd)}")
@@ -88,7 +87,7 @@ class VideoAnalyzer:
         ]
     
     def _parse_ytdlp_error(self, stderr):
-        """Parse yt-dlp error messages and return user-friendly message"""
+        """Parse yt-dlp stderr to user-friendly messages."""
         if "This video is unavailable" in stderr:
             return "Video unavailable or private"
         elif "Video unavailable" in stderr:
@@ -97,35 +96,9 @@ class VideoAnalyzer:
             return "Age-restricted video"
         else:
             return "Failed to get video info"
-    
-    def download_thumbnail(self, thumbnail_url, size=(260, 130)):
-        """
-        Download and resize thumbnail image
-        
-        Args:
-            thumbnail_url (str): URL of thumbnail image
-            size (tuple): Target size (width, height)
-            
-        Returns:
-            ImageTk.PhotoImage or None: Processed thumbnail image
-        """
-        try:
-            from io import BytesIO
-            from PIL import ImageTk
-            debug_print(f"Downloading thumbnail from: {thumbnail_url}")
-            
-            img_data = requests.get(thumbnail_url, timeout=THUMBNAIL_TIMEOUT).content
-            img = Image.open(BytesIO(img_data))
-            img = img.resize(size, Image.Resampling.LANCZOS)
-            
-            return ImageTk.PhotoImage(img)
-            
-        except Exception as e:
-            debug_print(f"Thumbnail download failed: {e}")
-            return None
 
 class VideoDownloader:
-    """Handles video downloading with progress tracking"""
+    """Handles video downloading with progress tracking."""
     
     def __init__(self):
         self.active_processes = []
@@ -134,30 +107,16 @@ class VideoDownloader:
         self.temp_files = []
     
     def download_video(self, url, output_path, preset, h264_enabled=True, progress_callback=None, cancel_check=None, download_section=None):
-        """
-        Download video with progress monitoring
-        
-        Args:
-            url (str): Video URL
-            output_path (str): Output file path (without extension)
-            preset (str): Download quality preset
-            h264_enabled (bool): Whether H264 encoding is enabled
-            progress_callback (callable): Function to call with progress updates
-            cancel_check (callable): Function to check if download should be cancelled
-            download_section (str): Time range string (e.g. '*00:00:00-00:02:00')
-            
-        Returns:
-            tuple: (success: bool, final_path: str or None, error_message: str or None)
-        """
+        """Download video with progress monitoring."""
         try:
             self.is_downloading = True
             self.temp_files.clear()
             
-            # Strip %(ext)s placeholder if save_path_var already has it (Keep Original mode)
+            # Strip %(ext)s placeholder if save_path_var already has it
             if output_path.endswith(".%(ext)s"):
                 output_path = output_path[: -len(".%(ext)s")]
 
-            # yt-dlp determines the final extension; strip any pre-existing one to avoid doubles (e.g. Video.mp4.webm)
+            # yt-dlp determines final extension; strip any pre-existing one to avoid double extensions (e.g. Video.mp4.webm)
             final_output = get_unique_filename_without_ext(output_path)
             
             debug_print(f"Download output base path: {final_output}")
@@ -215,7 +174,7 @@ class VideoDownloader:
             self.current_process = None
     
     def _build_download_command(self, url, output_path, preset, download_section=None):
-        """Build yt-dlp download command"""
+        """Build yt-dlp download command."""
         cmd = [
             str(YTDLP_PATH), url, "-o", f"{output_path}.%(ext)s",
             "--no-playlist", "--progress",
@@ -244,7 +203,7 @@ class VideoDownloader:
         return cmd
     
     def _monitor_download_progress(self, process, progress_callback, cancel_check, download_section=None):
-        """Monitor download progress and handle cancellation"""
+        """Monitor download progress and handle cancellation."""
         stream_progress = {}
         current_stream = None
         total_streams = 0
@@ -300,24 +259,35 @@ class VideoDownloader:
                 current_time = time.time()
                 if current_time - last_ffmpeg_update > 0.2:
                     time_match = re.search(r'time=([\-\d:.]+)', line)
+                    speed_match = re.search(r'speed=\s*([\d.x]+)', line)
+
                     if time_match and progress_callback:
                         time_str = time_match.group(1)
+                        speed_str = speed_match.group(1) if speed_match else "Unknown"
+
                         if time_str.startswith('-'):
                             progress_callback("Seeking to section start... (This may take a while)", 0)
                         else:
                             progress_val = None
                             if section_duration > 0:
                                 try:
-                                    h, m, s = map(float, time_str.split(':'))
-                                    curr_sec = h * 3600 + m * 60 + s
-                                    progress_val = min(100.0, (curr_sec / section_duration) * 100.0)
+                                    parts = time_str.split(':')
+                                    if len(parts) == 3:
+                                        h, m, s = float(parts[0]), float(parts[1]), float(parts[2])
+                                        curr_sec = h * 3600 + m * 60 + s
+                                        progress_val = min(100.0, (curr_sec / section_duration) * 100.0)
                                 except:
                                     pass
-                            progress_callback(f"Downloading section... (Time: {time_str})", progress_val)
+
+                            if progress_val is not None:
+                                progress_callback(f"Downloading section - {speed_str} - {progress_val:.1f}%", progress_val)
+                            else:
+                                progress_callback(f"Downloading section - {speed_str} - {time_str}", 0)
+
                     last_ffmpeg_update = current_time
     
     def _detect_stream(self, line):
-        """Detect stream identifier from download line"""
+        """Detect stream identifier from download line."""
         if ".f" in line and any(ext in line for ext in [".mp4", ".webm", ".m4a"]):
             stream_match = re.search(r'\.f(\d+)\.', line)
             if stream_match:
@@ -327,7 +297,7 @@ class VideoDownloader:
         return None
     
     def _parse_progress_line(self, line, stream_progress, current_stream, total_streams, last_progress, progress_callback):
-        """Parse progress from yt-dlp output line"""
+        """Parse progress from yt-dlp output line."""
         try:
             percent_match = re.search(r'(\d+(?:\.\d+)?)%', line)
             if not percent_match:
@@ -370,7 +340,7 @@ class VideoDownloader:
         return None
     
     def cancel_download(self):
-        """Cancel active download"""
+        """Cancel active download."""
         debug_print("Cancelling download...")
         self.is_downloading = False
 
@@ -392,11 +362,9 @@ class VideoDownloader:
             try:
                 self.current_process.terminate()
                 debug_print("Download process terminated")
-                # Wait a bit for graceful termination
                 try:
                     self.current_process.wait(timeout=2)
                 except:
-                    # Force kill if it doesn't terminate gracefully
                     try:
                         self.current_process.kill()
                         debug_print("Download process force killed")
@@ -406,7 +374,7 @@ class VideoDownloader:
                 debug_print(f"Error terminating download process: {e}")
     
     def cleanup_processes(self):
-        """Clean up active download processes"""
+        """Clean up active download processes."""
         for process in self.active_processes[:]:
             try:
                 if process.poll() is None:

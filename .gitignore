@@ -32,13 +32,15 @@ desktop.ini
 *.bak
 
 # Runtime data
-history.vmunch
+*.vmunch
 
 # Agents
 .agent/
 .agents/
 AGENTS.md
 .claude/
+graphify-out/
+skills-lock.json
 
 # Bundled binaries
 bin/ffmpeg
