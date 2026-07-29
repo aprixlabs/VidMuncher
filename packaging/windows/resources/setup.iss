@@ -13,6 +13,7 @@ AppId={{9F7B2C5D-6A4E-4C21-BD3A-1B8D9E3C5F8A}
 AppName={#AppName}
 AppVersion={#AppVersion}
 VersionInfoVersion={#AppVersion}.0
+UninstallDisplayName={#AppName}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppSupportURL={#AppURL}
