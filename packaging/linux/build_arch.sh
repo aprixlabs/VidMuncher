@@ -58,6 +58,18 @@ pyinstaller --onefile --windowed \
   --add-data "src/app/assets/fonts/Poppins-Black.ttf:assets/fonts" \
   --add-data "src/app/languages/en.json:app/languages" \
   --add-data "src/app/languages/id.json:app/languages" \
+  --add-data "src/app/languages/zh.json:app/languages" \
+  --add-data "src/app/languages/ru.json:app/languages" \
+  --add-data "src/app/languages/ar.json:app/languages" \
+  --add-data "src/app/languages/de.json:app/languages" \
+  --add-data "src/app/languages/es.json:app/languages" \
+  --add-data "src/app/languages/fr.json:app/languages" \
+  --add-data "src/app/languages/hi.json:app/languages" \
+  --add-data "src/app/languages/it.json:app/languages" \
+  --add-data "src/app/languages/ja.json:app/languages" \
+  --add-data "src/app/languages/pl.json:app/languages" \
+  --add-data "src/app/languages/pt.json:app/languages" \
+  --add-data "src/app/languages/tr.json:app/languages" \
   --hidden-import "PySide6" \
   --hidden-import "requests" \
   --exclude-module "yt_dlp" \
