@@ -15,7 +15,7 @@
 I built this because a certain multi-billion dollar video editor throws a tantrum over unsupported codecs. I'm not a real developer, but out of pure, unadulterated spite, I accidentally engineered a hardware-accelerated, self-updating media devouring monster. It was supposed to be a simple 10-line script. Now it has transcode support and a GUI. Please use it so my suffering isn't in vain.
 
 <div align="center">
-  <img src="branding/screenshot-1.png" alt="VidMuncher Screenshot">
+  <img src="branding/screenshot-1.png" width="540" alt="VidMuncher Screenshot">
 </div>
 
 ## What It Does
