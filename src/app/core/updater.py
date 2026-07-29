@@ -63,8 +63,28 @@ class DependencyUpdater:
             try:
                 import json
                 import subprocess
+                from app.config.app_info import APP_VERSION
 
                 debug_print("Updater: checking component versions from GitHub...")
+
+                # 1. Check App version
+                remote_app_ver = "Unknown"
+                local_app_ver = APP_VERSION
+                try:
+                    req_app = urllib.request.Request(
+                        "https://api.github.com/repos/aprixlabs/VidMuncher/releases/latest",
+                        headers={'User-Agent': 'VidMuncher-Updater/1.0'}
+                    )
+                    with urllib.request.urlopen(req_app) as response:
+                        app_data = json.loads(response.read().decode('utf-8'))
+                        tag = app_data.get('tag_name', 'Unknown')
+                        if tag.startswith('v'):
+                            remote_app_ver = tag[1:]
+                        else:
+                            remote_app_ver = tag
+                except Exception as e:
+                    debug_print(f"Updater: App version check failed — {e}")
+
                 req = urllib.request.Request(
                     "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest",
                     headers={'User-Agent': 'VidMuncher-Updater/1.0'}
@@ -144,15 +164,16 @@ class DependencyUpdater:
                     except:
                         pass
 
-                has_update = (local_ver != remote_ver) or (local_ff_ver != remote_ff_ver) or (local_deno_ver != remote_deno_ver)
+                has_update = (local_ver != remote_ver) or (local_ff_ver != remote_ff_ver) or (local_deno_ver != remote_deno_ver) or (local_app_ver != remote_app_ver and remote_app_ver != "Unknown")
+                self._pending_updates['app'] = (local_app_ver != remote_app_ver and remote_app_ver != "Unknown")
                 self._pending_updates['ytdlp'] = (local_ver != remote_ver)
                 self._pending_updates['ffmpeg'] = (local_ff_ver != remote_ff_ver)
                 self._pending_updates['deno'] = (local_deno_ver != remote_deno_ver)
-                debug_print(f"Updater: check done — yt-dlp local={local_ver!r} remote={remote_ver!r}, ffmpeg local={local_ff_ver!r} remote={remote_ff_ver!r}, deno local={local_deno_ver!r} remote={remote_deno_ver!r}")
-                result_callback(has_update, local_ver, remote_ver, local_ff_ver, remote_ff_ver, local_deno_ver, remote_deno_ver, None)
+                debug_print(f"Updater: check done — App local={local_app_ver!r} remote={remote_app_ver!r}, yt-dlp local={local_ver!r} remote={remote_ver!r}, ffmpeg local={local_ff_ver!r} remote={remote_ff_ver!r}, deno local={local_deno_ver!r} remote={remote_deno_ver!r}")
+                result_callback(has_update, local_app_ver, remote_app_ver, local_ver, remote_ver, local_ff_ver, remote_ff_ver, local_deno_ver, remote_deno_ver, None)
             except Exception as e:
                 debug_print(f"Updater: check failed — {e}")
-                result_callback(False, "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", str(e))
+                result_callback(False, "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", str(e))
 
         threading.Thread(target=check_thread, daemon=True).start()
 

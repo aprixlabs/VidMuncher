@@ -23,7 +23,7 @@ class UpdateFlow:
         from PySide6.QtCore import QObject, Signal, QTimer
 
         class _Signaler(QObject):
-            sig = Signal(bool, str, str, str, str, str, str, str)
+            sig = Signal(bool, str, str, str, str, str, str, str, str, str)
 
         self._btn.setEnabled(False)
         self._btn.setText(_("about.checking_updates"))
@@ -39,14 +39,14 @@ class UpdateFlow:
 
         signaler = _Signaler()
         signaler.sig.connect(
-            lambda hu, yl, yr, fl, fr, dl, dr, err:
-            self._on_check_result(hu, yl, yr, fl, fr, dl, dr, err, about_dialog)
+            lambda hu, al, ar, yl, yr, fl, fr, dl, dr, err:
+            self._on_check_result(hu, al, ar, yl, yr, fl, fr, dl, dr, err, about_dialog)
         )
         # Keep ref to prevent GC
         self._signaler = signaler
 
         updater.check_updates(
-            lambda hu, yl, yr, fl, fr, dl, dr, err: signaler.sig.emit(hu, yl, yr, fl, fr, dl, dr, err)
+            lambda hu, al, ar, yl, yr, fl, fr, dl, dr, err: signaler.sig.emit(hu, al, ar, yl, yr, fl, fr, dl, dr, err)
         )
 
     # Internal handlers
@@ -65,7 +65,7 @@ class UpdateFlow:
         self._btn.setEnabled(True)
         self._btn.setText(_("about.check_update"))
 
-    def _on_check_result(self, has_update, yt_local, yt_remote,
+    def _on_check_result(self, has_update, app_local, app_remote, yt_local, yt_remote,
                          ff_local, ff_remote, deno_local, deno_remote, error, about_dialog):
         from app.config import APP_VERSION
 
@@ -83,6 +83,8 @@ class UpdateFlow:
 
         if has_update:
             self._reset_btn()
+            app_text = (f"{app_local} &rarr; {app_remote}"
+                        if app_local != app_remote and app_remote != "Unknown" else f"{app_local} ({_('about.up_to_date')})")
             yt_text = (f"{yt_local} &rarr; {yt_remote}"
                        if yt_local != yt_remote else f"{yt_local} ({_('about.up_to_date')})")
             ff_text = (f"{ff_local} &rarr; {ff_remote}"
@@ -91,7 +93,7 @@ class UpdateFlow:
                          if deno_local != deno_remote else f"{deno_local} ({_('about.up_to_date')})")
             msg = (
                 f"<table border='0' cellspacing='0' cellpadding='2' align='center'>"
-                f"<tr><td align='right' style='font-weight: 500;'>VidMuncher</td><td width='15'></td><td align='left'>{APP_VERSION}</td></tr>"
+                f"<tr><td align='right' style='font-weight: 500;'>VidMuncher</td><td width='15'></td><td align='left'>{app_text}</td></tr>"
                 f"<tr><td align='right' style='font-weight: 500;'>yt-dlp</td><td></td><td align='left'>{yt_text}</td></tr>"
                 f"<tr><td align='right' style='font-weight: 500;'>FFmpeg</td><td></td><td align='left'>{ff_text}</td></tr>"
                 f"<tr><td align='right' style='font-weight: 500;'>Deno</td><td></td><td align='left'>{deno_text}</td></tr>"
@@ -100,8 +102,15 @@ class UpdateFlow:
 
             def on_yes():
                 self._btn.setEnabled(False)
-                self._btn.setText(_("about.downloading_updates"))
-                self._show_update_progress(about_dialog)
+                if app_local != app_remote and app_remote != "Unknown":
+                    # App update available -> Open releases page in browser
+                    import webbrowser
+                    webbrowser.open("https://github.com/aprixlabs/VidMuncher/releases/latest")
+                    self._reset_btn()
+                else:
+                    # Component updates available -> Download in background
+                    self._btn.setText(_("about.downloading_updates"))
+                    self._show_update_progress(about_dialog)
 
             self._show_message(about_dialog, _("about.update_available"), msg, "ask", on_yes, ask_text=_('about.update_now'))
         else:
