@@ -132,10 +132,10 @@ class SetupDialog(QDialog):
     def start_check(self):
         from app.core.updater import updater
         self.updater = updater
-        # Updater callback sends 8 args now:
-        # has_update, yt_local, yt_remote, ff_local, ff_remote, deno_local, deno_remote, err
+        # Updater callback sends 10 args now:
+        # has_update, app_local, app_remote, yt_local, yt_remote, ff_local, ff_remote, deno_local, deno_remote, err
         self.updater.check_updates(
-            lambda hu, yl, yr, fl, fr, dl, dr, e:
+            lambda hu, al, ar, yl, yr, fl, fr, dl, dr, e:
             self._signals.check_finished.emit(hu, yl, yr, fl, fr, e or "")
         )
 
