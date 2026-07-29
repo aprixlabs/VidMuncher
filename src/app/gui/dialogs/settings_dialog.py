@@ -12,6 +12,10 @@ from app.config import (
     DOWNLOAD_PRESETS, ENCODER_OPTIONS, DROPDOWN_ARROW_PATH, UP_ARROW_PATH, CHECKMARK_ICON_PATH
 )
 from app.config.settings import SettingsManager
+from app.utils.cookies import get_installed_browsers
+from app.utils.debug import debug_print
+
+from app.utils.localization import _
 
 class SidebarButton(QPushButton):
     def __init__(self, text, index, stacked_widget):
@@ -61,7 +65,31 @@ class SettingsDialog(QDialog):
         self.setFixedSize(650, 480)
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setStyleSheet("QDialog { background: transparent; }")
+        self.setStyleSheet(f"""
+            QDialog {{ background: transparent; }}
+            QMenu {{
+                background-color: {HEADER_BG_COLOR};
+                color: {TEXT_COLOR};
+                border: 1px solid {BUTTON_COLOR};
+                border-radius: 6px;
+            }}
+            QMenu::item {{
+                background-color: transparent;
+                padding: 6px 20px 6px 20px;
+                margin: 2px 4px;
+                border-radius: 4px;
+            }}
+            QMenu::icon {{
+                padding-left: 10px;
+            }}
+            QMenu::item:selected {{
+                background-color: {BUTTON_COLOR};
+                color: {TEXT_COLOR};
+            }}
+            QMenu::item:disabled {{
+                color: #555555;
+            }}
+        """)
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -95,7 +123,7 @@ class SettingsDialog(QDialog):
         title_bar_layout = QHBoxLayout(title_bar)
         title_bar_layout.setContentsMargins(15, 0, 15, 0)
 
-        title_lbl = QLabel("Settings")
+        title_lbl = QLabel(_("settings.title"))
         title_lbl.setFont(QFont("Poppins", 9, QFont.Bold))
         title_lbl.setStyleSheet("color: #cccccc;")
         title_lbl.setAlignment(Qt.AlignCenter)
@@ -150,9 +178,9 @@ class SettingsDialog(QDialog):
         self.setup_advanced_tab()
 
         # Sidebar Buttons
-        self.btn_general = SidebarButton("General", 0, self.stacked)
-        self.btn_network = SidebarButton("Network", 1, self.stacked)
-        self.btn_advanced = SidebarButton("Advanced", 2, self.stacked)
+        self.btn_general = SidebarButton(_("settings.general_settings").split()[0], 0, self.stacked)
+        self.btn_network = SidebarButton(_("settings.network_cookies").split()[0], 1, self.stacked)
+        self.btn_advanced = SidebarButton(_("settings.advanced_config").split()[0], 2, self.stacked)
 
         sidebar_layout.addWidget(self.btn_general)
         sidebar_layout.addWidget(self.btn_network)
@@ -184,7 +212,7 @@ class SettingsDialog(QDialog):
         btn_layout.setContentsMargins(20, 10, 20, 15)
         btn_layout.addStretch()
 
-        self.save_btn = QPushButton("Save")
+        self.save_btn = QPushButton(_("buttons.save"))
         self.save_btn.setFixedSize(110, 35)
         self.save_btn.setCursor(Qt.PointingHandCursor)
         self.save_btn.setStyleSheet(f"""
@@ -205,21 +233,7 @@ class SettingsDialog(QDialog):
 
         btn_layout.addWidget(self.save_btn)
 
-        # We need to overlay the button container on top of the bottom edge of body
-        # Since it's currently a VBox, it will just sit at the bottom.
-        # But wait, QStackedWidget has no background color by default if not styled,
-        # but we styled it. Let's just put the buttons at the bottom of the stacked widget area,
-        # or globally at the bottom of main layout.
-
-        # Actually, let's just make the btn_container sit across the bottom of the stacked widget,
-        # or the whole window. The current code puts it in the main frame_layout.
-        # But sidebar has bottom-left radius. If btn_container spans the whole width, it covers sidebar.
-        # So we should put btn_container inside the right side (stacked side) only.
-
-        # Let's adjust layout structure:
-        # body_layout = HBox [ sidebar, right_side_vbox ]
-        # right_side_vbox = VBox [ stacked, btn_container ]
-
+        # Build stacked content and buttons
         right_side = QWidget()
         right_side.setStyleSheet(f"background-color: {WINDOW_BG_COLOR}; border-bottom-right-radius: 10px;")
         rs_layout = QVBoxLayout(right_side)
@@ -251,11 +265,14 @@ class SettingsDialog(QDialog):
                 color: {TEXT_COLOR};
                 border: none;
                 border-radius: 6px;
-                padding: 4px 12px;
+                padding: 4px 30px 4px 12px;
                 font-family: Poppins;
                 font-size: 9pt;
                 selection-background-color: {BUTTON_COLOR};
                 selection-color: {TEXT_COLOR};
+            }}
+            QLineEdit {{
+                padding: 4px 12px;
             }}
             QLineEdit:focus, QComboBox:focus, QSpinBox:focus {{
                 border: none;
@@ -282,11 +299,35 @@ class SettingsDialog(QDialog):
                 outline: none;
             }}
             QComboBox QAbstractItemView::item {{
-                padding: 6px 10px;
+                padding: 4px 10px;
+            }}
+            QComboBox QAbstractItemView::item:hover {{
+                background-color: {BUTTON_COLOR};
+                color: {TEXT_COLOR};
             }}
             QComboBox QAbstractItemView::item:selected {{
                 background-color: {BUTTON_COLOR};
                 color: {TEXT_COLOR};
+                border: none;
+                outline: none;
+            }}
+            /* Style scrollbar inside QComboBox dropdown */
+            QComboBox QScrollBar:vertical {{
+                border: none;
+                background-color: {HEADER_BG_COLOR};
+                width: 6px;
+                margin: 0px 0px 0px 0px;
+            }}
+            QComboBox QScrollBar::handle:vertical {{
+                background-color: {BUTTON_COLOR};
+                min-height: 20px;
+                border-radius: 3px;
+            }}
+            QComboBox QScrollBar::add-line:vertical, QComboBox QScrollBar::sub-line:vertical {{
+                height: 0px; background: none; border: none;
+            }}
+            QComboBox QScrollBar::add-page:vertical, QComboBox QScrollBar::sub-page:vertical {{
+                background: none;
             }}
             QSpinBox::up-button {{
                 subcontrol-origin: border;
@@ -337,9 +378,10 @@ class SettingsDialog(QDialog):
         return f"""
             QCheckBox {{
                 color: {TEXT_COLOR};
-                font-family: Poppins;
+                font-family: 'Poppins';
                 font-size: 9pt;
                 background: transparent;
+                spacing: 12px;
             }}
             QCheckBox::indicator {{
                 width: 18px;
@@ -358,7 +400,7 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(30, 30, 30, 10)
 
-        header_lbl = QLabel("General Settings")
+        header_lbl = QLabel(_("settings.general_settings"))
         header_lbl.setFont(QFont("Poppins", 14, QFont.Bold))
         header_lbl.setStyleSheet(f"color: {TEXT_COLOR};")
         layout.addWidget(header_lbl)
@@ -381,7 +423,7 @@ class SettingsDialog(QDialog):
         self.dir_input.setStyleSheet(self._create_input_style())
         self.dir_input.setFixedHeight(32)
 
-        browse_btn = QPushButton("Browse")
+        browse_btn = QPushButton(_("buttons.browse"))
         browse_btn.setCursor(Qt.PointingHandCursor)
         browse_btn.setFixedSize(85, 32)
         browse_btn.setStyleSheet(f"""
@@ -415,9 +457,19 @@ class SettingsDialog(QDialog):
         self.enc_combo.setStyleSheet(self._create_input_style())
         self.enc_combo.setFixedHeight(32)
 
-        form_layout.addRow(self._create_label("Download Location"), path_widget)
-        form_layout.addRow(self._create_label("Default Preset"), self.preset_combo)
-        form_layout.addRow(self._create_label("Default Encoder"), self.enc_combo)
+        self.lang_combo = QComboBox()
+        self.lang_combo.setItemDelegate(QStyledItemDelegate())
+
+        available_langs = ["English", "Indonesian"]
+        self.lang_combo.addItems(sorted(available_langs))
+
+        self.lang_combo.setStyleSheet(self._create_input_style())
+        self.lang_combo.setFixedHeight(32)
+
+        form_layout.addRow(self._create_label(_("app.language")), self.lang_combo)
+        form_layout.addRow(self._create_label(_("settings.default_save_path")), path_widget)
+        form_layout.addRow(self._create_label(_("settings.default_preset")), self.preset_combo)
+        form_layout.addRow(self._create_label(_("settings.default_encoder")), self.enc_combo)
 
         layout.addLayout(form_layout)
         layout.addStretch()
@@ -428,7 +480,7 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(30, 30, 30, 10)
 
-        header_lbl = QLabel("Network & Cookies")
+        header_lbl = QLabel(_("settings.network_cookies"))
         header_lbl.setFont(QFont("Poppins", 14, QFont.Bold))
         header_lbl.setStyleSheet(f"color: {TEXT_COLOR};")
         layout.addWidget(header_lbl)
@@ -453,37 +505,126 @@ class SettingsDialog(QDialog):
         self.rate_spin.setFixedHeight(32)
         self.rate_spin.setStyleSheet(self._create_input_style())
 
+        rate_hint = QLabel(_("settings.unlimited_hint"))
+        rate_hint.setFont(QFont("Poppins", 9))
+        rate_hint.setStyleSheet("color: #8C6A7B; background: transparent;")
+
+        rate_widget = QWidget()
+        rate_layout = QHBoxLayout(rate_widget)
+        rate_layout.setContentsMargins(0, 0, 0, 0)
+        rate_layout.setSpacing(10)
+        rate_layout.addWidget(self.rate_spin)
+        rate_layout.addWidget(rate_hint)
+        rate_layout.addStretch()
+
         self.proxy_input = QLineEdit()
-        self.proxy_input.setPlaceholderText("e.g. socks5://127.0.0.1:1080")
+        self.proxy_input.setPlaceholderText(_("settings.proxy_placeholder"))
         self.proxy_input.setStyleSheet(self._create_input_style())
         self.proxy_input.setFixedHeight(32)
 
-        # Cookie row
-        cookie_widget = QWidget()
-        cookie_layout = QHBoxLayout(cookie_widget)
-        cookie_layout.setContentsMargins(0, 0, 0, 0)
-        cookie_layout.setSpacing(12)
+        # Cookie Mode Dropdown
+        self.cookie_mode_combo = QComboBox()
+        self.cookie_mode_combo.setItemDelegate(QStyledItemDelegate())
+        self.cookie_mode_combo.addItems([
+            _("settings.cookie_mode_none"),
+            _("settings.cookie_mode_browser"),
+            _("settings.cookie_mode_file")
+        ])
+        self.cookie_mode_combo.setStyleSheet(self._create_input_style())
+        self.cookie_mode_combo.setFixedHeight(32)
 
-        self.cookie_check = QCheckBox("Extract from:")
-        self.cookie_check.setStyleSheet(self._create_checkbox_style())
+        # Stacked widget for cookie settings (Browser vs File)
+        self.cookie_stack = QStackedWidget()
+        self.cookie_stack.setFixedHeight(32)
+
+        # 1. Empty Page (None)
+        empty_page = QWidget()
+        self.cookie_stack.addWidget(empty_page)
+
+        # 2. Browser Page
+        browser_page = QWidget()
+        browser_layout = QHBoxLayout(browser_page)
+        browser_layout.setContentsMargins(0, 0, 0, 0)
+        browser_layout.setSpacing(12)
 
         self.browser_combo = QComboBox()
         self.browser_combo.setItemDelegate(QStyledItemDelegate())
-        self.browser_combo.addItems(["chrome", "firefox", "edge", "opera", "brave", "safari"])
+        detected_browsers = get_installed_browsers()
+        if not detected_browsers:
+            detected_browsers = ["chrome"]
+        self.browser_combo.addItems(detected_browsers)
+        self.browser_combo.setMaxVisibleItems(4)
         self.browser_combo.setStyleSheet(self._create_input_style())
-        self.browser_combo.setFixedWidth(110)
+        self.browser_combo.setFixedWidth(130)
         self.browser_combo.setFixedHeight(32)
 
-        cookie_layout.addWidget(self.cookie_check)
-        cookie_layout.addWidget(self.browser_combo)
-        cookie_layout.addStretch()
+        browser_layout.addWidget(self.browser_combo)
+        browser_layout.addStretch()
+        self.cookie_stack.addWidget(browser_page)
 
-        self.cookie_check.toggled.connect(self.browser_combo.setEnabled)
+        # 3. File Page
+        file_page = QWidget()
+        file_layout = QHBoxLayout(file_page)
+        file_layout.setContentsMargins(0, 0, 0, 0)
+        file_layout.setSpacing(8)
 
-        form_layout.addRow(self._create_label("Max Retries"), self.retry_spin)
-        form_layout.addRow(self._create_label("Rate Limit (MB/s)"), self.rate_spin)
-        form_layout.addRow(self._create_label("Proxy Config"), self.proxy_input)
-        form_layout.addRow(self._create_label("Cookies"), cookie_widget)
+        self.cookie_file_input = QLineEdit()
+        self.cookie_file_input.setPlaceholderText(_("settings.cookies_file_placeholder"))
+        self.cookie_file_input.setStyleSheet(self._create_input_style())
+        self.cookie_file_input.setFixedHeight(32)
+
+        cookie_browse_btn = QPushButton(_("buttons.browse"))
+        cookie_browse_btn.setFixedSize(85, 32)
+        cookie_browse_btn.setCursor(Qt.PointingHandCursor)
+        cookie_browse_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {BUTTON_COLOR};
+                color: white; border: none; border-radius: 6px;
+                font-family: Poppins; font-weight: bold; font-size: 9pt;
+            }}
+            QPushButton:hover {{ background-color: {BUTTON_ACTIVE_COLOR}; }}
+        """)
+        cookie_browse_btn.clicked.connect(self.browse_cookie_txt)
+
+        cookie_help_btn = QPushButton("?")
+        cookie_help_btn.setFixedSize(24, 24)
+        cookie_help_btn.setCursor(Qt.PointingHandCursor)
+        cookie_help_btn.setToolTip(_("settings.cookie_help_tooltip"))
+        cookie_help_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {BUTTON_COLOR};
+                color: white; border: none; border-radius: 12px;
+                font-family: Poppins; font-weight: bold; font-size: 10pt;
+            }}
+            QPushButton:hover {{ background-color: {BUTTON_ACTIVE_COLOR}; }}
+        """)
+        def open_cookie_help():
+            from PySide6.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+            QDesktopServices.openUrl(QUrl("https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp"))
+        cookie_help_btn.clicked.connect(open_cookie_help)
+
+        file_layout.addWidget(self.cookie_file_input)
+        file_layout.addWidget(cookie_browse_btn)
+        file_layout.addWidget(cookie_help_btn)
+        self.cookie_stack.addWidget(file_page)
+
+        self.cookie_mode_combo.currentIndexChanged.connect(self.cookie_stack.setCurrentIndex)
+
+        self.cookie_source_label = self._create_label(_("settings.cookies_source"))
+
+        form_layout.addRow(self._create_label(_("settings.max_retries")), self.retry_spin)
+        form_layout.addRow(self._create_label(_("settings.rate_limit")), rate_widget)
+        form_layout.addRow(self._create_label(_("settings.proxy_config")), self.proxy_input)
+        form_layout.addRow(self._create_label(_("settings.cookies_mode")), self.cookie_mode_combo)
+        form_layout.addRow(self.cookie_source_label, self.cookie_stack)
+
+        def toggle_cookie_source_row(index):
+            show_source = (index != 0)
+            self.cookie_source_label.setVisible(show_source)
+            self.cookie_stack.setVisible(show_source)
+
+        self.cookie_mode_combo.currentIndexChanged.connect(toggle_cookie_source_row)
 
         layout.addLayout(form_layout)
         layout.addStretch()
@@ -494,7 +635,7 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(30, 30, 30, 10)
 
-        header_lbl = QLabel("Advanced Config")
+        header_lbl = QLabel(_("settings.advanced_config"))
         header_lbl.setFont(QFont("Poppins", 14, QFont.Bold))
         header_lbl.setStyleSheet(f"color: {TEXT_COLOR};")
         layout.addWidget(header_lbl)
@@ -514,11 +655,11 @@ class SettingsDialog(QDialog):
         ff_layout.setSpacing(8)
 
         self.ff_input = QLineEdit()
-        self.ff_input.setPlaceholderText("Leave empty to use bundled")
+        self.ff_input.setPlaceholderText(_("settings.leave_empty"))
         self.ff_input.setStyleSheet(self._create_input_style())
         self.ff_input.setFixedHeight(32)
 
-        ff_btn = QPushButton("Browse")
+        ff_btn = QPushButton(_("buttons.browse"))
         ff_btn.setFixedSize(85, 32)
         ff_btn.setCursor(Qt.PointingHandCursor)
         ff_btn.setStyleSheet(f"""
@@ -547,11 +688,11 @@ class SettingsDialog(QDialog):
         yt_layout.setSpacing(8)
 
         self.yt_input = QLineEdit()
-        self.yt_input.setPlaceholderText("Leave empty to use bundled")
+        self.yt_input.setPlaceholderText(_("settings.leave_empty"))
         self.yt_input.setStyleSheet(self._create_input_style())
         self.yt_input.setFixedHeight(32)
 
-        yt_btn = QPushButton("Browse")
+        yt_btn = QPushButton(_("buttons.browse"))
         yt_btn.setFixedSize(85, 32)
         yt_btn.setCursor(Qt.PointingHandCursor)
         yt_btn.setStyleSheet(f"""
@@ -573,12 +714,46 @@ class SettingsDialog(QDialog):
         yt_layout.addWidget(self.yt_input)
         yt_layout.addWidget(yt_btn)
 
-        self.debug_check = QCheckBox("Enable Console Logs")
+        # Deno override
+        deno_widget = QWidget()
+        deno_layout = QHBoxLayout(deno_widget)
+        deno_layout.setContentsMargins(0, 0, 0, 0)
+        deno_layout.setSpacing(8)
+
+        self.deno_input = QLineEdit()
+        self.deno_input.setPlaceholderText(_("settings.leave_empty"))
+        self.deno_input.setStyleSheet(self._create_input_style())
+        self.deno_input.setFixedHeight(32)
+
+        deno_btn = QPushButton(_("buttons.browse"))
+        deno_btn.setFixedSize(85, 32)
+        deno_btn.setCursor(Qt.PointingHandCursor)
+        deno_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {BUTTON_COLOR};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-family: Poppins;
+                font-weight: bold;
+                font-size: 9pt;
+            }}
+            QPushButton:hover {{
+                background-color: {BUTTON_ACTIVE_COLOR};
+            }}
+        """)
+        deno_btn.clicked.connect(lambda: self.browse_exe(self.deno_input))
+
+        deno_layout.addWidget(self.deno_input)
+        deno_layout.addWidget(deno_btn)
+
+        self.debug_check = QCheckBox(_("settings.enable_logs"))
         self.debug_check.setStyleSheet(self._create_checkbox_style())
 
-        form_layout.addRow(self._create_label("FFmpeg Path"), ff_widget)
-        form_layout.addRow(self._create_label("yt-dlp Path"), yt_widget)
-        form_layout.addRow(self._create_label("Debug Mode"), self.debug_check)
+        form_layout.addRow(self._create_label(_("settings.ytdlp_path")), yt_widget)
+        form_layout.addRow(self._create_label(_("settings.ffmpeg_path")), ff_widget)
+        form_layout.addRow(self._create_label(_("settings.deno_path")), deno_widget)
+        form_layout.addRow(self._create_label(_("settings.debug_mode")), self.debug_check)
 
         layout.addLayout(form_layout)
         layout.addStretch()
@@ -590,9 +765,20 @@ class SettingsDialog(QDialog):
             self.dir_input.setText(path)
 
     def browse_exe(self, line_edit):
-        path, _ = QFileDialog.getOpenFileName(self, "Select Executable", "", "Executables (*.exe);;All Files (*)")
+        import sys
+        if sys.platform == "win32":
+            filter_str = "Executables (*.exe);;All Files (*)"
+        else:
+            filter_str = "All Files (*)"
+
+        path, _ = QFileDialog.getOpenFileName(self, "Select Executable", "", filter_str)
         if path:
             line_edit.setText(path)
+
+    def browse_cookie_txt(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Select Cookie File", "", "Text Files (*.txt);;All Files (*)")
+        if path:
+            self.cookie_file_input.setText(path)
 
     def load_current_values(self):
         gen = self.current_settings["general"]
@@ -600,27 +786,69 @@ class SettingsDialog(QDialog):
         self.preset_combo.setCurrentText(gen["default_preset"])
         self.enc_combo.setCurrentText(gen["default_encoder"])
 
+        lang_map = {
+            "en": "English", "id": "Indonesian"
+        }
+        current_lang = gen.get("language", "en")
+        self.lang_combo.setCurrentText(lang_map.get(current_lang, "English"))
+
+        # Sync labels to language selection
+        labels = self.preset_combo.parentWidget().findChildren(QLabel)
+        if len(labels) > 3:
+            labels[1].setText(_("app.language"))
+            labels[2].setText(_("settings.default_save_path"))
+            labels[3].setText(_("settings.default_preset"))
+            labels[4].setText(_("settings.default_encoder"))
+
         net = self.current_settings["network"]
         self.retry_spin.setValue(net["extractor_retries"])
         self.rate_spin.setValue(net["rate_limit_mbps"])
         self.proxy_input.setText(net["proxy"])
-        self.cookie_check.setChecked(net["use_cookies"])
+
+        mode = net.get("cookie_mode", "none")
+        mode_index = 0
+        if mode == "browser":
+            mode_index = 1
+        elif mode == "file":
+            mode_index = 2
+
+        self.cookie_mode_combo.setCurrentIndex(mode_index)
+        self.cookie_stack.setCurrentIndex(mode_index)
+
+        # Explicitly hide/show on load
+        show_source = (mode_index != 0)
+        self.cookie_source_label.setVisible(show_source)
+        self.cookie_stack.setVisible(show_source)
+
         self.browser_combo.setCurrentText(net["browser_cookies"])
-        self.browser_combo.setEnabled(net["use_cookies"])
+        self.cookie_file_input.setText(net.get("cookie_file", ""))
 
         adv = self.current_settings["advanced"]
         self.ff_input.setText(adv["ffmpeg_path"])
         self.yt_input.setText(adv["ytdlp_path"])
+        self.deno_input.setText(adv.get("deno_path", ""))
         self.debug_check.setChecked(adv["debug_mode"])
 
     def save_and_close(self):
+        mode_text = "none"
+        idx = self.cookie_mode_combo.currentIndex()
+        if idx == 1:
+            mode_text = "browser"
+        elif idx == 2:
+            mode_text = "file"
+
+        lang_reverse_map = {
+            "English": "en", "Indonesian": "id"
+        }
+        selected_lang = lang_reverse_map.get(self.lang_combo.currentText(), "en")
+
         new_settings = {
             "general": {
                 "download_dir": self.dir_input.text(),
                 "default_preset": self.preset_combo.currentText(),
                 "default_encoder": self.enc_combo.currentText(),
                 "theme": "Dark",
-                "language": "English"
+                "language": selected_lang
             },
             "network": {
                 "extractor_retries": self.retry_spin.value(),
@@ -628,17 +856,23 @@ class SettingsDialog(QDialog):
                 "concurrent_downloads": 1,
                 "rate_limit_mbps": self.rate_spin.value(),
                 "proxy": self.proxy_input.text(),
-                "use_cookies": self.cookie_check.isChecked(),
-                "browser_cookies": self.browser_combo.currentText()
+                "cookie_mode": mode_text,
+                "browser_cookies": self.browser_combo.currentText(),
+                "cookie_file": self.cookie_file_input.text()
             },
             "advanced": {
                 "ffmpeg_path": self.ff_input.text(),
                 "ytdlp_path": self.yt_input.text(),
+                "deno_path": self.deno_input.text(),
                 "debug_mode": self.debug_check.isChecked()
             }
         }
 
+        debug_print(f"Settings saved: {new_settings}")
+
         self.settings_mgr.update_all(new_settings)
+        from app.utils.localization import LocalizationManager
+        LocalizationManager.load_language(selected_lang)
         self.settings_saved.emit(new_settings)
         self.accept()
 
@@ -649,15 +883,13 @@ class SettingsManagerDialog:
         self.settings_mgr = SettingsManager()
 
     def show_dialog(self):
-        if hasattr(self.gui, 'central_widget'):
-            overlay = QWidget(self.gui.central_widget)
-            overlay.setGeometry(self.gui.central_widget.rect())
-            overlay.setStyleSheet("background-color: rgba(0, 0, 0, 150);")
-            overlay.show()
+        overlay = QWidget(self.gui.main_widget)
+        overlay.setGeometry(self.gui.main_widget.rect())
+        overlay.setStyleSheet("background-color: rgba(0, 0, 0, 150); border-radius: 10px;")
+        overlay.show()
 
         dlg = SettingsDialog(self.gui)
 
-        # Center the dialog on top of the parent window
         parent_geo = self.gui.geometry()
         x = parent_geo.x() + (parent_geo.width() - dlg.width()) // 2
         y = parent_geo.y() + (parent_geo.height() - dlg.height()) // 2
@@ -667,6 +899,5 @@ class SettingsManagerDialog:
 
         dlg.exec()
 
-        if hasattr(self.gui, 'central_widget'):
-            overlay.hide()
-            overlay.deleteLater()
+        overlay.hide()
+        overlay.deleteLater()

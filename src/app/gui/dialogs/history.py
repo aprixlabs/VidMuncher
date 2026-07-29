@@ -19,16 +19,11 @@ from app.config import (
 )
 from app.utils.debug import debug_print
 from app.utils.formatting import format_file_size
+from app.utils.localization import _
 
 STATUS_COMPLETED = "completed"
 STATUS_ERROR     = "error"
 STATUS_CANCELLED = "cancelled"
-
-_STATUS_STYLE = {
-    STATUS_COMPLETED: ("Complete",  TEXT_COLOR),
-    STATUS_ERROR:     ("Failed",    TEXT_COLOR),
-    STATUS_CANCELLED: ("Canceled",  TEXT_COLOR),
-}
 
 _ITEM_BG       = "#5B012A"
 _ITEM_BG_SEL   = "#6b0038"
@@ -37,7 +32,7 @@ class HistoryDialog:
 
     def __init__(self, main_gui):
         self.gui = main_gui
-        self.history = self._load_history()
+        self.history = []
 
     # Persistence
 
@@ -97,21 +92,25 @@ class HistoryDialog:
     # Dialog entry point
 
     def show_history_dialog(self):
+        # Load history lazily on first show to avoid blocking main startup
+        if not hasattr(self, '_history_loaded'):
+            self.history = self._load_history()
+            self._history_loaded = True
+
         # Apply dark overlay to main window
-        if hasattr(self.gui, 'central_widget'):
-            overlay = QWidget(self.gui.central_widget)
-            overlay.setGeometry(self.gui.central_widget.rect())
-            overlay.setStyleSheet("background-color: rgba(0, 0, 0, 150);")
-            overlay.show()
+        overlay = QWidget(self.gui.main_widget)
+        overlay.setGeometry(self.gui.main_widget.rect())
+        overlay.setStyleSheet("background-color: rgba(0, 0, 0, 150); border-radius: 10px;")
+        overlay.show()
 
         dlg = QDialog(self.gui)
         # Center the dialog on top of the parent window
         parent_geo = self.gui.geometry()
         x = parent_geo.x() + (parent_geo.width() - 620) // 2
-        y = parent_geo.y() + (parent_geo.height() - (520 + 30)) // 2
+        y = parent_geo.y() + (parent_geo.height() - 520) // 2
         dlg.move(x, y)
-        dlg.setWindowTitle("Download History")
-        dlg.setFixedSize(620, 520 + 30)
+        dlg.setWindowTitle(_("history.title"))
+        dlg.setFixedSize(620, 520)
         dlg.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
         dlg.setAttribute(Qt.WA_TranslucentBackground)
         dlg.setStyleSheet("QDialog { background: transparent; }")
@@ -147,7 +146,7 @@ class HistoryDialog:
         title_layout = QHBoxLayout(title_bar)
         title_layout.setContentsMargins(15, 0, 15, 0)
 
-        title_lbl_tb = QLabel("Download History")
+        title_lbl_tb = QLabel(_("history.title"))
         title_lbl_tb.setFont(QFont("Poppins", 9, QFont.Bold))
         title_lbl_tb.setStyleSheet("color: #cccccc;")
         title_lbl_tb.setAlignment(Qt.AlignCenter)
@@ -176,66 +175,23 @@ class HistoryDialog:
         layout.setSpacing(0)
         frame_layout.addWidget(content)
 
-        top_widget = QWidget(content)
-        top_widget.setStyleSheet(f"background-color: {HEADER_BG_COLOR};")
-        top_bar = QHBoxLayout(top_widget)
-        top_bar.setContentsMargins(20, 18, 20, 18)
-        
-        icon_lbl = QLabel()
-        icon_lbl.setPixmap(QIcon(HISTORY_ICON_PATH.as_posix()).pixmap(24, 24))
-        icon_lbl.setStyleSheet("background: transparent; border: none;")
-        
-        title_lbl = QLabel("Download History")
-        title_lbl.setFont(QFont("Poppins", 14, QFont.Bold))
-        title_lbl.setStyleSheet(f"color: {TEXT_COLOR};")
-        
-        self.count_lbl = QLabel(f"{len(self.history)} item(s)")
-        self.count_lbl.setFont(QFont("Poppins", 9))
-        self.count_lbl.setStyleSheet("color: #888888;")
-        
-        clear_btn = QPushButton("Clear All")
-        clear_btn.setFixedSize(90, 35)
-        clear_btn.setCursor(Qt.PointingHandCursor)
-        clear_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {BUTTON_COLOR};
-                color: {TEXT_COLOR};
-                font-family: Poppins;
-                font-size: 10pt;
-                font-weight: bold;
-                border: none;
-                border-radius: 6px;
-            }}
-            QPushButton:hover {{
-                background-color: {BUTTON_ACTIVE_COLOR};
-            }}
-        """)
-        clear_btn.clicked.connect(lambda: self._confirm_clear(dlg))
-
-        top_bar.addWidget(icon_lbl)
-        top_bar.addWidget(title_lbl)
-        top_bar.addWidget(self.count_lbl)
-        top_bar.addStretch()
-        top_bar.addWidget(clear_btn)
-        
-        layout.addWidget(top_widget)
-
         self.table = QTableWidget()
         self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["", "File Name", "Date", "Size", "Status"])
+        self.table.setHorizontalHeaderLabels(["", _("history.file_name"), _("history.date"), _("history.size"), _("history.status")])
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.table.setShowGrid(False)
         self.table.setSortingEnabled(True)
-        
+
         self.table.setStyleSheet(f"""
             QTableWidget, QTableView {{
                 background-color: {WINDOW_BG_COLOR};
                 color: {TEXT_COLOR};
                 border: none;
                 outline: none;
+                margin-bottom: -2px;
             }}
             QTableWidget::item {{
                 padding: 5px 0px;
@@ -283,6 +239,10 @@ class HistoryDialog:
             }}
         """)
 
+        # Add bottom margin padding by ensuring the table does not draw to the very edge
+        # so the last item is not clipped off by the bottom border roundness or overlap
+        self.table.setViewportMargins(0, 0, 0, 5)
+
         header = self.table.horizontalHeader()
         header.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         header.setSectionResizeMode(QHeaderView.Interactive)
@@ -297,10 +257,11 @@ class HistoryDialog:
 
         self.table.setColumnWidth(0, 17)
         header.setSectionResizeMode(0, QHeaderView.Fixed)
-        self.table.setColumnWidth(1, 248)
+        self.table.setColumnWidth(1, 290)
         self.table.setColumnWidth(2, 120)
         self.table.setColumnWidth(3, 70)
         self.table.setColumnWidth(4, 85)
+        header.setSectionResizeMode(4, QHeaderView.Fixed)
 
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_context_menu)
@@ -308,33 +269,97 @@ class HistoryDialog:
 
         layout.addWidget(self.table)
 
-        self._populate_table()
+        bottom_widget = QFrame(content)
+        bottom_widget.setObjectName("BottomWidget")
+        bottom_widget.setFixedHeight(35)
+        bottom_widget.setStyleSheet(f"""
+            QFrame#BottomWidget {{
+                background-color: {WINDOW_BG_COLOR};
+                border-top: 1px solid {HEADER_BG_COLOR};
+                border-bottom-left-radius: 10px;
+                border-bottom-right-radius: 10px;
+            }}
+        """)
+        bottom_bar = QHBoxLayout(bottom_widget)
+        bottom_bar.setContentsMargins(20, 0, 20, 0)
+
+        self.count_lbl = QLabel(_("history.items_count").format(len(self.history)))
+        self.count_lbl.setFont(QFont("Poppins", 9, QFont.Bold))
+        self.count_lbl.setStyleSheet("background: transparent; color: #8C6A7B;")
+
+        clear_btn = QPushButton(_("buttons.clear_all"))
+        clear_btn.setCursor(Qt.PointingHandCursor)
+        clear_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: #8C6A7B;
+                font-family: Poppins;
+                font-size: 9pt;
+                font-weight: bold;
+                border: none;
+                padding: 0px;
+            }}
+            QPushButton:hover {{
+                color: #ffffff;
+            }}
+        """)
+        clear_btn.clicked.connect(lambda: self._confirm_clear(dlg))
+
+        bottom_bar.addWidget(self.count_lbl)
+        bottom_bar.addStretch()
+        bottom_bar.addWidget(clear_btn)
+
+        layout.addWidget(bottom_widget)
+
+        # Set Table spacing & content margins to align properly with the bottom bar
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.table.setViewportMargins(0, 0, 0, 0)
+
+        # Defer table population so dialog shows instantly
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(0, self._populate_table)
 
         dlg.exec()
 
         # Remove overlay when dialog closes
-        if hasattr(self.gui, 'central_widget'):
-            overlay.hide()
-            overlay.deleteLater()
+        overlay.hide()
+        overlay.deleteLater()
 
     def _on_section_resized(self, logicalIndex, oldSize, newSize):
         if getattr(self, '_resizing_guard', False): return
 
-        max_widths = {1: 350, 2: 250, 3: 150}
-        
-        if logicalIndex in max_widths and newSize > max_widths[logicalIndex]:
-            self._resizing_guard = True
-            self.table.horizontalHeader().resizeSection(logicalIndex, max_widths[logicalIndex])
-            self._resizing_guard = False
+        # Establish sensible limits to prevent vanishing columns or overlapping
+        limits = {
+            1: (150, 400), # File Name
+            2: (100, 200), # Date
+            3: (60, 150),  # Size
+        }
+
+        if logicalIndex in limits:
+            min_w, max_w = limits[logicalIndex]
+            if newSize > max_w:
+                self._resizing_guard = True
+                self.table.horizontalHeader().resizeSection(logicalIndex, max_w)
+                self._resizing_guard = False
+            elif newSize < min_w:
+                self._resizing_guard = True
+                self.table.horizontalHeader().resizeSection(logicalIndex, min_w)
+                self._resizing_guard = False
 
     def _populate_table(self):
+        self.table.setUpdatesEnabled(False)
         self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
-        
+
+        font_main = QFont("Poppins", 9)
+        font_sub = QFont("Poppins", 8)
+        font_bold = QFont("Poppins", 8, QFont.Bold)
+        brush_gray = QBrush(QColor("#aaaaaa"))
+
         for entry in self.history:
             row = self.table.rowCount()
             self.table.insertRow(row)
-            
+
             fp = entry.get("file_path", "")
             raw_name = os.path.basename(fp) if fp else (entry.get("title") or "Unknown")
 
@@ -342,24 +367,25 @@ class HistoryDialog:
             dummy_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
             name_item = QTableWidgetItem(raw_name)
-            name_item.setFont(QFont("Poppins", 9))
+            name_item.setFont(font_main)
             name_item.setData(Qt.UserRole, entry)
 
             date_item = QTableWidgetItem(entry.get("date", "—"))
-            date_item.setFont(QFont("Poppins", 8))
-            date_item.setForeground(QBrush(QColor("#aaaaaa")))
+            date_item.setFont(font_sub)
+            date_item.setForeground(brush_gray)
 
             size_item = QTableWidgetItem(entry.get("size", "—"))
-            size_item.setFont(QFont("Poppins", 8))
-            size_item.setForeground(QBrush(QColor("#aaaaaa")))
+            size_item.setFont(font_sub)
+            size_item.setForeground(brush_gray)
 
             size_item.setData(Qt.UserRole, entry.get("size_bytes", 0))
-            
+
             status_key = entry.get("status", STATUS_COMPLETED)
-            status_label, s_color = _STATUS_STYLE.get(status_key, ("Unknown", "#888888"))
-            
+            status_label = _(f"history.status_{status_key}", default=status_key.capitalize())
+            s_color = TEXT_COLOR
+
             status_item = QTableWidgetItem(status_label)
-            status_item.setFont(QFont("Poppins", 8, QFont.Bold))
+            status_item.setFont(font_bold)
             status_item.setForeground(QBrush(QColor(s_color)))
 
             self.table.setItem(row, 0, dummy_item)
@@ -373,6 +399,7 @@ class HistoryDialog:
 
         header = self.table.horizontalHeader()
         self._on_sort_changed(header.sortIndicatorSection(), header.sortIndicatorOrder())
+        self.table.setUpdatesEnabled(True)
 
     def _on_sort_changed(self, index, order):
         if getattr(self, '_sorting_guard', False): return
@@ -383,7 +410,7 @@ class HistoryDialog:
             self._sorting_guard = False
             return
             
-        labels = ["", "File Name", "Date", "Size", "Status"]
+        labels = ["", _("history.file_name"), _("history.date"), _("history.size"), _("history.status")]
         for i in range(1, 5):
             item = self.table.horizontalHeaderItem(i)
             if item:
@@ -412,18 +439,29 @@ class HistoryDialog:
         url = entry.get("url")
 
         menu = QMenu(self.table)
+        menu.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint)
+        menu.setAttribute(Qt.WA_TranslucentBackground)
         menu.setStyleSheet(f"""
             QMenu {{
                 background-color: {HEADER_BG_COLOR};
                 color: {TEXT_COLOR};
                 border: none;
+                border-radius: 6px;
             }}
             QMenu::item {{
                 padding: 6px 20px;
                 font-family: Poppins;
+                font-size: 9pt;
+                margin: 2px 4px;
             }}
             QMenu::item:selected {{
                 background-color: {BUTTON_COLOR};
+                border-radius: 4px;
+            }}
+            QMenu::separator {{
+                height: 1px;
+                background-color: {WINDOW_BG_COLOR};
+                margin: 4px 0px;
             }}
         """)
 
@@ -495,44 +533,151 @@ class HistoryDialog:
         if not entries:
             return
 
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QCheckBox, QWidget, QFrame
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QFont, QCursor
+
         dlg = QDialog(self.table)
-        dlg.setWindowTitle("Remove Files")
-        dlg.setStyleSheet(f"background-color: {HEADER_BG_COLOR}; color: {TEXT_COLOR};")
-        layout = QVBoxLayout(dlg)
+        parent_geo = self.gui.geometry()
+        x = parent_geo.x() + (parent_geo.width() - 340) // 2
+        y = parent_geo.y() + (parent_geo.height() - 200) // 2
+        dlg.move(x, y)
+        dlg.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        dlg.setAttribute(Qt.WA_TranslucentBackground)
+        dlg.setStyleSheet("QDialog { background: transparent; }")
+
+        main_layout = QVBoxLayout(dlg)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        main_layout.setSizeConstraint(QVBoxLayout.SetFixedSize)
+
+        main_frame = QFrame(dlg)
+        main_frame.setObjectName("MainFrame")
+        main_frame.setMinimumWidth(340)
+        main_frame.setStyleSheet(f"""
+            QFrame#MainFrame {{
+                background-color: {HEADER_BG_COLOR};
+                border-radius: 10px;
+            }}
+        """)
+        main_layout.addWidget(main_frame)
+
+        frame_layout = QVBoxLayout(main_frame)
+        frame_layout.setContentsMargins(0, 0, 0, 0)
+        frame_layout.setSpacing(0)
+
+        # Title bar
+        title_bar = QWidget(main_frame)
+        title_bar.setFixedHeight(30)
+        title_bar.setStyleSheet("""
+            QWidget {
+                background-color: #2b2b2b;
+                border-top-left-radius: 9px;
+                border-top-right-radius: 9px;
+            }
+        """)
+        tb_layout = QHBoxLayout(title_bar)
+        tb_layout.setContentsMargins(15, 0, 15, 0)
+
+        title_lbl = QLabel(_("buttons.remove_files"))
+        title_lbl.setFont(QFont("Poppins", 9, QFont.Bold))
+        title_lbl.setStyleSheet("color: #cccccc;")
+        title_lbl.setAlignment(Qt.AlignCenter)
+        title_lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
+        tb_layout.addWidget(title_lbl, 1)
+
+        close_btn = QPushButton("", title_bar)
+        close_btn.setFixedSize(12, 12)
+        close_btn.setStyleSheet(
+            "QPushButton { border-radius: 6px; background-color: #FF5F56; border: none; }"
+            "QPushButton:hover { background-color: #E0443E; }"
+        )
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.clicked.connect(dlg.reject)
+        tb_layout.addWidget(close_btn)
+
+        def mp(event):
+            if event.button() == Qt.LeftButton:
+                win = dlg.windowHandle()
+                if win:
+                    win.startSystemMove()
+                event.accept()
+        title_bar.mousePressEvent = mp
+        frame_layout.addWidget(title_bar)
+
+        content = QWidget(main_frame)
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 15, 20, 15)
         layout.setSpacing(10)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSizeConstraint(QVBoxLayout.SetFixedSize)
-        
-        lbl = QLabel("Are you sure you want to remove selected files?")
+        frame_layout.addWidget(content)
+
+        lbl = QLabel(_("history.confirm_remove"))
         lbl.setFont(QFont("Poppins", 10))
+        lbl.setWordWrap(True)
+        lbl.setFixedWidth(300)
         layout.addWidget(lbl)
-        
-        layout.addSpacing(5)
-        
-        chk = QCheckBox("Remove files from disk")
+
+        from app.config import CHECKMARK_ICON_PATH
+        chk = QCheckBox(_("buttons.remove_from_disk"))
         chk.setFont(QFont("Poppins", 9))
-        chk.setStyleSheet(f"QCheckBox::indicator {{ width: 16px; height: 16px; }}")
+        chk.setStyleSheet(f"""
+            QCheckBox {{
+                color: {TEXT_COLOR};
+                font-family: Poppins;
+                font-size: 9pt;
+                background: transparent;
+                spacing: 8px;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+                border-radius: 4px;
+                background-color: #1a000e;
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {BUTTON_COLOR};
+                image: url("{CHECKMARK_ICON_PATH.as_posix()}");
+            }}
+        """)
         layout.addWidget(chk)
-        
-        layout.addSpacing(10)
-        
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        
-        del_btn = QPushButton("Delete")
-        del_btn.setFixedSize(90, 35)
-        del_btn.setStyleSheet(f"background-color: {BUTTON_COLOR}; border-radius: 6px; font-family: Poppins; font-weight: bold;")
+
+        btn_row = QHBoxLayout()
+        btn_row.setAlignment(Qt.AlignCenter)
+        btn_row.setSpacing(10)
+
+        _ok_style = f"""
+            QPushButton {{
+                background-color: {BUTTON_COLOR}; color: {TEXT_COLOR};
+                border: none; border-radius: 6px;
+                font-family: Poppins; font-weight: bold; font-size: 10pt;
+            }}
+            QPushButton:hover {{ background-color: {BUTTON_ACTIVE_COLOR}; }}
+        """
+        _cancel_style = f"""
+            QPushButton {{
+                background-color: {BUTTON_DISABLED_COLOR}; color: {TEXT_COLOR};
+                border: none; border-radius: 6px;
+                font-family: Poppins; font-weight: bold; font-size: 10pt;
+            }}
+            QPushButton:hover {{ background-color: {BUTTON_ACTIVE_COLOR}; }}
+        """
+
+        del_btn = QPushButton(_("buttons.delete"))
+        del_btn.setFixedSize(90, 26)
+        del_btn.setCursor(Qt.PointingHandCursor)
+        del_btn.setStyleSheet(_ok_style)
         del_btn.clicked.connect(lambda: self._do_remove(entries, chk.isChecked(), dlg))
-        
-        cancel_btn = QPushButton("Cancel")
-        cancel_btn.setFixedSize(90, 35)
-        cancel_btn.setStyleSheet(f"background-color: {BUTTON_DISABLED_COLOR}; border-radius: 6px; font-family: Poppins; font-weight: bold;")
+
+        cancel_btn = QPushButton(_("buttons.cancel"))
+        cancel_btn.setFixedSize(90, 26)
+        cancel_btn.setCursor(Qt.PointingHandCursor)
+        cancel_btn.setStyleSheet(_cancel_style)
         cancel_btn.clicked.connect(dlg.reject)
-        
-        btn_layout.addWidget(del_btn)
-        btn_layout.addWidget(cancel_btn)
-        
-        layout.addLayout(btn_layout)
+
+        btn_row.addWidget(del_btn)
+        btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+
         dlg.exec()
 
     def _do_remove(self, entries, delete_disk, dlg):
@@ -550,42 +695,18 @@ class HistoryDialog:
         dlg.accept()
 
     def _confirm_clear(self, parent):
-        dlg = QDialog(parent)
-        dlg.setWindowTitle("Clear History")
-        dlg.setStyleSheet(f"background-color: {HEADER_BG_COLOR}; color: {TEXT_COLOR};")
-        
-        layout = QVBoxLayout(dlg)
-        layout.setSpacing(10)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSizeConstraint(QVBoxLayout.SetFixedSize)
-        
-        lbl = QLabel("Are you sure you want to clear all download history?")
-        lbl.setFont(QFont("Poppins", 10))
-        layout.addWidget(lbl)
-        
-        layout.addSpacing(10)
-        
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        
-        yes_btn = QPushButton("Yes")
-        yes_btn.setFixedSize(90, 35)
-        yes_btn.setStyleSheet(f"background-color: {BUTTON_COLOR}; border-radius: 6px; font-family: Poppins; font-weight: bold;")
-        
+        # Delegate message layout showing to modern update dialog helper style
+        from app.gui.dialogs.update import UpdateFlow
+
         def on_yes():
             self.clear_history()
             self._populate_table()
-            dlg.accept()
-            
-        yes_btn.clicked.connect(on_yes)
-        
-        no_btn = QPushButton("No")
-        no_btn.setFixedSize(90, 35)
-        no_btn.setStyleSheet(f"background-color: {BUTTON_DISABLED_COLOR}; border-radius: 6px; font-family: Poppins; font-weight: bold;")
-        no_btn.clicked.connect(dlg.reject)
-        
-        btn_layout.addWidget(yes_btn)
-        btn_layout.addWidget(no_btn)
-        
-        layout.addLayout(btn_layout)
-        dlg.exec()
+
+        updater_ui = UpdateFlow(self.gui, parent)
+        updater_ui._show_message(
+            parent,
+            _("history.clear_history_title"),
+            _("history.confirm_clear_history"),
+            msg_type="ask",
+            on_yes=on_yes
+        )

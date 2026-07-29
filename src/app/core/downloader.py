@@ -3,6 +3,7 @@ VidMuncher Downloader Module
 yt-dlp download logic and progress tracking.
 """
 
+import os
 import re
 import json
 import subprocess
@@ -12,14 +13,15 @@ import requests
 from app.config import (
     YTDLP_PATH,
     FFMPEG_PATH,
+    DENO_PATH,
     USER_AGENT,
-    EXTRACTOR_RETRIES,
-    FRAGMENT_RETRIES,
     RETRY_SLEEP,
     ANALYZE_TIMEOUT,
     THUMBNAIL_TIMEOUT,
-    PROGRESS_UPDATE_THRESHOLD
+    PROGRESS_UPDATE_THRESHOLD,
+    Messages
 )
+from app.config.settings import SettingsManager
 from app.utils.debug import debug_print
 from app.utils.filesystem import get_extension_from_preset, get_unique_filename, get_unique_filename_without_ext, find_downloaded_file
 
@@ -55,47 +57,84 @@ class VideoAnalyzer:
             return True, video_data, None
             
         except subprocess.TimeoutExpired:
-            error_msg = "Timeout - URL took too long to analyze"
+            error_msg = Messages.TIMEOUT_ANALYZE
             debug_print(f"Analyze timeout after {ANALYZE_TIMEOUT} seconds")
             return False, None, error_msg
-            
+
         except subprocess.CalledProcessError as e:
             error_msg = self._parse_ytdlp_error(e.stderr)
             debug_print(f"yt-dlp error: {e.stderr}")
             return False, None, error_msg
-            
+
         except json.JSONDecodeError as e:
-            error_msg = "Failed to parse video information"
+            error_msg = Messages.FAILED_VIDEO_INFO
             debug_print(f"JSON decode error: {str(e)}")
             return False, None, error_msg
-            
+
         except Exception as e:
-            error_msg = "Invalid URL or network error"
+            error_msg = Messages.INVALID_URL
             debug_print(f"Analyze error: {str(e)}")
             return False, None, error_msg
     
     def _build_analyze_command(self, url):
         """Build yt-dlp analyze command"""
-        return [
-            str(YTDLP_PATH), "--dump-json", url,
+        settings = SettingsManager()
+
+        # Executable override
+        ytdlp_path = str(YTDLP_PATH)
+        custom_ytdlp = settings.get("advanced", "ytdlp_path")
+        if custom_ytdlp and os.path.exists(custom_ytdlp):
+            ytdlp_path = custom_ytdlp
+
+        deno_path = str(DENO_PATH)
+        custom_deno = settings.get("advanced", "deno_path")
+        if custom_deno and os.path.exists(custom_deno):
+            deno_path = custom_deno
+
+        # Retries
+        ext_retries = settings.get("network", "extractor_retries")
+        frag_retries = settings.get("network", "fragment_retries")
+
+        cmd = [
+            ytdlp_path, "--dump-json", url,
             "--user-agent", USER_AGENT,
-            "--extractor-retries", str(EXTRACTOR_RETRIES),
-            "--fragment-retries", str(FRAGMENT_RETRIES),
+            "--extractor-retries", str(ext_retries),
+            "--fragment-retries", str(frag_retries),
             "--retry-sleep", str(RETRY_SLEEP),
             "--no-check-certificate",
-            "--no-playlist"
+            "--no-playlist",
+            "--js-runtimes", f"deno:{deno_path}"
         ]
+
+        cookie_mode = settings.get("network", "cookie_mode")
+        if cookie_mode == "browser":
+            browser = settings.get("network", "browser_cookies")
+            if browser:
+                cmd.extend(["--cookies-from-browser", browser])
+        elif cookie_mode == "file":
+            cookie_file = settings.get("network", "cookie_file")
+            if cookie_file and os.path.exists(cookie_file):
+                cmd.extend(["--cookies", cookie_file])
+
+        # Proxy override
+        proxy = settings.get("network", "proxy")
+        if proxy:
+            cmd.extend(["--proxy", proxy])
+
+        return cmd
     
     def _parse_ytdlp_error(self, stderr):
         """Parse yt-dlp stderr to user-friendly messages."""
-        if "This video is unavailable" in stderr:
-            return "Video unavailable or private"
+        if "Could not copy Chrome cookie database" in stderr or "Failed to decrypt with DPAPI" in stderr:
+            return Messages.COOKIE_EXTRACTION_FAILED
+        elif "This video is unavailable" in stderr:
+            return Messages.VIDEO_UNAVAILABLE
         elif "Video unavailable" in stderr:
-            return "Video not found or restricted"
+            return Messages.VIDEO_NOT_FOUND
         elif "Sign in to confirm your age" in stderr:
-            return "Age-restricted video"
+            return Messages.AGE_RESTRICTED
         else:
-            return "Failed to get video info"
+            return Messages.FAILED_VIDEO_INFO
 
 class VideoDownloader:
     """Handles video downloading with progress tracking."""
@@ -122,7 +161,7 @@ class VideoDownloader:
             debug_print(f"Download output base path: {final_output}")
             
             if progress_callback:
-                progress_callback("Downloading...", 0)
+                progress_callback(Messages.DOWNLOADING, 0)
             
             cmd = self._build_download_command(url, final_output, preset, download_section)
             
@@ -153,14 +192,33 @@ class VideoDownloader:
 
             if process.returncode == 0:
                 debug_print("Download completed successfully")
-                actual_path = find_downloaded_file(final_output) or final_output
+                # Pre-calculate the expected extension so we don't glob random older files
+                if "Audio" in preset:
+                    expected_ext = "." + preset.replace("Audio (", "").replace(")", "").strip()
+                else:
+                    expected_ext = ".mp4" if h264_enabled else None
+
+                if expected_ext:
+                    actual_path = find_downloaded_file(final_output, [expected_ext])
+                else:
+                    actual_path = find_downloaded_file(final_output)
+
+                actual_path = actual_path or final_output
                 debug_print(f"Resolved actual file path: {actual_path}")
                 return True, actual_path, None
             else:
                 if cancel_check and cancel_check():
-                    error_msg = "Download was cancelled by user"
+                    error_msg = Messages.DOWNLOAD_CANCELLED
                 else:
-                    error_msg = f"Download failed with return code: {process.returncode}"
+                    from app.utils.localization import _
+                    # Check for stored error from monitor_download_progress
+                    if hasattr(self, '_last_dl_error') and self._last_dl_error:
+                        if "403" in self._last_dl_error or "Forbidden" in self._last_dl_error:
+                            error_msg = _("messages.download_forbidden")
+                        else:
+                            error_msg = f"{Messages.DOWNLOAD_FAILED}: {self._last_dl_error}"
+                    else:
+                        error_msg = f"{Messages.DOWNLOAD_FAILED} (return code: {process.returncode})"
 
                 debug_print(error_msg)
                 return False, None, error_msg
@@ -175,31 +233,74 @@ class VideoDownloader:
     
     def _build_download_command(self, url, output_path, preset, download_section=None):
         """Build yt-dlp download command."""
+        settings = SettingsManager()
+
+        # Executable overrides
+        ytdlp_path = str(YTDLP_PATH)
+        custom_ytdlp = settings.get("advanced", "ytdlp_path")
+        if custom_ytdlp and os.path.exists(custom_ytdlp):
+            ytdlp_path = custom_ytdlp
+
+        ffmpeg_path = str(FFMPEG_PATH)
+        custom_ffmpeg = settings.get("advanced", "ffmpeg_path")
+        if custom_ffmpeg and os.path.exists(custom_ffmpeg):
+            ffmpeg_path = custom_ffmpeg
+
+        deno_path = str(DENO_PATH)
+        custom_deno = settings.get("advanced", "deno_path")
+        if custom_deno and os.path.exists(custom_deno):
+            deno_path = custom_deno
+
+        # Retries
+        ext_retries = settings.get("network", "extractor_retries")
+        frag_retries = settings.get("network", "fragment_retries")
+
         cmd = [
-            str(YTDLP_PATH), url, "-o", f"{output_path}.%(ext)s",
+            ytdlp_path, url, "-o", f"{output_path}.%(ext)s",
             "--no-playlist", "--progress",
             "--user-agent", USER_AGENT,
-            "--extractor-retries", str(EXTRACTOR_RETRIES),
-            "--fragment-retries", str(FRAGMENT_RETRIES),
+            "--extractor-retries", str(ext_retries),
+            "--fragment-retries", str(frag_retries),
             "--retry-sleep", str(RETRY_SLEEP),
             "--no-check-certificate",
             "--force-overwrites",
             "--downloader-args", "ffmpeg:-nostdin -y",
-            "--ffmpeg-location", str(FFMPEG_PATH)
+            "--ffmpeg-location", ffmpeg_path,
+            "--js-runtimes", f"deno:{deno_path}"
         ]
-        
+
+        cookie_mode = settings.get("network", "cookie_mode")
+        if cookie_mode == "browser":
+            browser = settings.get("network", "browser_cookies")
+            if browser:
+                cmd.extend(["--cookies-from-browser", browser])
+        elif cookie_mode == "file":
+            cookie_file = settings.get("network", "cookie_file")
+            if cookie_file and os.path.exists(cookie_file):
+                cmd.extend(["--cookies", cookie_file])
+
         if download_section:
             cmd.extend(["--download-sections", download_section])
-        
+
+        # Proxy override
+        proxy = settings.get("network", "proxy")
+        if proxy:
+            cmd.extend(["--proxy", proxy])
+
+        # Rate limit override
+        rate_limit = settings.get("network", "rate_limit_mbps")
+        if rate_limit and rate_limit > 0:
+            cmd.extend(["--limit-rate", f"{rate_limit}M"])
+
         if "Audio" in preset:
             audio_format = preset.replace("Audio (", "").replace(")", "").strip()
             cmd.extend(["--extract-audio", "--audio-format", audio_format])
         elif preset != "Best Quality":
             height = preset.replace("p", "")
-            cmd.extend(["-f", f"bestvideo[height={height}]+bestaudio/bestvideo[height<={height}]+bestaudio/best[height<={height}]"])
+            cmd.extend(["-f", f"bestvideo[height={height}]+bestaudio/bestvideo[height<={height}]+bestaudio/bestvideo+bestaudio/best[height<={height}]"])
         else:
-            cmd.extend(["-f", "bestvideo[height>=1080]+bestaudio/bestvideo[height>=720]+bestvideo/bestvideo+bestaudio/best"])
-        
+            cmd.extend(["-f", "bestvideo[height>=1080]+bestaudio/bestvideo[height>=720]+bestaudio/bestvideo+bestaudio/best"])
+
         return cmd
     
     def _monitor_download_progress(self, process, progress_callback, cancel_check, download_section=None):
@@ -223,6 +324,7 @@ class VideoDownloader:
             except Exception as e:
                 debug_print(f"Failed to parse section duration: {e}")
 
+        self._last_dl_error = None
         for line in process.stdout:
             if cancel_check and cancel_check():
                 debug_print("Download cancelled by user")
@@ -230,6 +332,9 @@ class VideoDownloader:
 
             line = line.strip()
             debug_print(f"yt-dlp: {line}")
+
+            if "ERROR:" in line:
+                self._last_dl_error = line.split("ERROR:", 1)[1].strip()
 
             if "[download] Destination:" in line:
                 current_stream = self._detect_stream(line)
@@ -287,7 +392,6 @@ class VideoDownloader:
                     last_ffmpeg_update = current_time
     
     def _detect_stream(self, line):
-        """Detect stream identifier from download line."""
         if ".f" in line and any(ext in line for ext in [".mp4", ".webm", ".m4a"]):
             stream_match = re.search(r'\.f(\d+)\.', line)
             if stream_match:
@@ -295,9 +399,8 @@ class VideoDownloader:
         else:
             return "single"
         return None
-    
+
     def _parse_progress_line(self, line, stream_progress, current_stream, total_streams, last_progress, progress_callback):
-        """Parse progress from yt-dlp output line."""
         try:
             percent_match = re.search(r'(\d+(?:\.\d+)?)%', line)
             if not percent_match:

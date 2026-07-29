@@ -8,6 +8,8 @@ from app.config import (
     ICON_PNG_PATH, ABOUT_ICON_PATH, HISTORY_ICON_PATH, SETTINGS_ICON_PATH, Layout
 )
 
+from app.utils.localization import _
+
 class HeaderWidget(QWidget):
     """Header widget containing app title, logo, and top buttons."""
 
@@ -60,7 +62,7 @@ class HeaderWidget(QWidget):
         title_layout.addWidget(self.version_label)
         title_layout.addStretch()
 
-        self.subtitle_label = QLabel("Video Downloader", self)
+        self.subtitle_label = QLabel(_("app.subtitle"), self)
         self.subtitle_label.setFont(QFont("Poppins", 12, QFont.Medium))
         self.subtitle_label.setStyleSheet("color: #ffdcee; background-color: transparent;")
         self.subtitle_label.setGeometry(Layout.HEADER_IMAGE_X + 66, 46, 150, 20)

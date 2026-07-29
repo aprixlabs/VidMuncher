@@ -8,6 +8,8 @@ from app.config import (Layout, Fonts, HEADER_BG_COLOR, TEXT_COLOR, PLACEHOLDER_
                         DROPDOWN_ARROW_PATH, UP_ARROW_PATH, CHECKMARK_ICON_PATH,
                         DOWNLOAD_PRESETS, ENCODER_OPTIONS)
 
+from app.utils.localization import _
+
 class QueuePanel:
     def __init__(self, parent_widget):
         self.parent_widget = parent_widget
@@ -28,7 +30,7 @@ class QueuePanel:
         # URL Input
         self.url_entry = QLineEdit(self.parent_widget)
         self.url_entry.setFont(default_font)
-        self.url_entry.setPlaceholderText(Layout.URL_PLACEHOLDER.strip())
+        self.url_entry.setPlaceholderText(_("main_ui.url_placeholder"))
         self.url_entry.setStyleSheet(f"""
             QLineEdit {{
                 background-color: {HEADER_BG_COLOR};
@@ -54,7 +56,7 @@ class QueuePanel:
                                           Layout.VIDEO_INFO_WIDTH, Layout.VIDEO_INFO_HEIGHT)
         self.video_info_frame.setStyleSheet(f"background-color: {HEADER_BG_COLOR}; border-radius: 6px;")
 
-        self.video_info_placeholder = QLabel(Layout.VIDEO_INFO_PLACEHOLDER, self.video_info_frame)
+        self.video_info_placeholder = QLabel(_("main_ui.video_info_placeholder"), self.video_info_frame)
         self.video_info_placeholder.setFont(small_font)
         self.video_info_placeholder.setStyleSheet(f"color: {PLACEHOLDER_COLOR}; background-color: transparent;")
         self.video_info_placeholder.setAlignment(Qt.AlignCenter)
@@ -62,6 +64,8 @@ class QueuePanel:
 
         self.video_info = QTextEdit(self.video_info_frame)
         self.video_info.setFont(small_font)
+        self.video_info.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.video_info.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.video_info.setStyleSheet(f"color: {TEXT_COLOR}; background-color: transparent; border: none; padding: 5px; selection-background-color: {BUTTON_COLOR}; selection-color: {TEXT_COLOR};")
         self.video_info.setReadOnly(True)
         self.video_info.setGeometry(0, 0, Layout.VIDEO_INFO_WIDTH, Layout.VIDEO_INFO_HEIGHT)
@@ -74,7 +78,7 @@ class QueuePanel:
                                          Layout.THUMBNAIL_WIDTH, Layout.THUMBNAIL_HEIGHT)
         self.thumbnail_frame.setStyleSheet(f"background-color: {HEADER_BG_COLOR}; border-radius: 6px;")
 
-        self.thumbnail_placeholder = QLabel(Layout.THUMBNAIL_PLACEHOLDER, self.thumbnail_frame)
+        self.thumbnail_placeholder = QLabel(_("main_ui.thumbnail"), self.thumbnail_frame)
         self.thumbnail_placeholder.setFont(small_font)
         self.thumbnail_placeholder.setStyleSheet(f"color: {PLACEHOLDER_COLOR}; background-color: transparent;")
         self.thumbnail_placeholder.setAlignment(Qt.AlignCenter)
@@ -115,7 +119,8 @@ class QueuePanel:
                 color: {TEXT_COLOR};
                 selection-background-color: {BUTTON_COLOR};
                 selection-color: {TEXT_COLOR};
-                border: none;
+                border: 1px solid {BUTTON_COLOR};
+                border-radius: 6px;
                 outline: none;
             }}
             QComboBox QAbstractItemView::item {{
@@ -152,7 +157,7 @@ class QueuePanel:
         """
 
         # Preset
-        self.preset_label = QLabel("Select Preset", self.parent_widget)
+        self.preset_label = QLabel(_("main_ui.select_preset"), self.parent_widget)
         self.preset_label.setFont(default_font)
         self.preset_label.setStyleSheet(f"color: {TEXT_COLOR}; background-color: transparent;")
         self.preset_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
@@ -167,7 +172,7 @@ class QueuePanel:
                                       Layout.PRESET_COMBO_WIDTH, Layout.PRESET_COMBO_HEIGHT)
 
         # Encoder
-        self.reencode_label = QLabel("Codec", self.parent_widget)
+        self.reencode_label = QLabel(_("main_ui.codec"), self.parent_widget)
         self.reencode_label.setFont(default_font)
         self.reencode_label.setStyleSheet(f"color: {TEXT_COLOR}; background-color: transparent;")
         self.reencode_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
@@ -182,7 +187,7 @@ class QueuePanel:
                                        Layout.REENCODE_COMBO_WIDTH, Layout.REENCODE_COMBO_HEIGHT)
 
         # Section Download
-        self.section_checkbox = QCheckBox("Download Section", self.parent_widget)
+        self.section_checkbox = QCheckBox(_("main_ui.download_section"), self.parent_widget)
         self.section_checkbox.setFont(default_font)
         self.section_checkbox.setStyleSheet(f"""
             QCheckBox {{ color: {TEXT_COLOR}; background-color: transparent; }}
@@ -236,7 +241,7 @@ class QueuePanel:
         self.end_time_edit.setEnabled(False)
 
         # Save Location
-        self.save_label = QLabel("Save Location", self.parent_widget)
+        self.save_label = QLabel(_("main_ui.save_location"), self.parent_widget)
         self.save_label.setFont(default_font)
         self.save_label.setStyleSheet(f"color: {TEXT_COLOR}; background-color: transparent;")
         self.save_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
@@ -254,7 +259,7 @@ class QueuePanel:
         self.save_entry.setGeometry(Layout.SAVE_ENTRY_X, Layout.SAVE_ENTRY_Y,
                                     Layout.SAVE_ENTRY_WIDTH, Layout.SAVE_ENTRY_HEIGHT)
 
-        self.browse_btn = QPushButton("Browse", self.parent_widget)
+        self.browse_btn = QPushButton(_("buttons.browse"), self.parent_widget)
         self.browse_btn.setFont(bold_font)
         self.browse_btn.setCursor(Qt.PointingHandCursor)
         self.browse_btn.setStyleSheet(f"""

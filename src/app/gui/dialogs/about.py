@@ -15,6 +15,8 @@ from app.gui.dialogs.update import UpdateFlow
 from app.utils.debug import debug_print
 
 
+from app.utils.localization import _
+
 class AboutDialog:
     """Manages the About dialog and its update check flow."""
 
@@ -25,12 +27,11 @@ class AboutDialog:
     def show_about_dialog(self):
         parent = self.gui
 
-        # Apply dark overlay to main window
-        if hasattr(parent, 'central_widget'):
-            overlay = QWidget(parent.central_widget)
-            overlay.setGeometry(parent.central_widget.rect())
-            overlay.setStyleSheet("background-color: rgba(0, 0, 0, 150);")
-            overlay.show()
+        # Apply dark overlay to main window (cover both titlebar and central widget)
+        overlay = QWidget(parent.main_widget)
+        overlay.setGeometry(parent.main_widget.rect())
+        overlay.setStyleSheet("background-color: rgba(0, 0, 0, 150); border-radius: 10px;")
+        overlay.show()
 
         dlg = QDialog(parent)
         parent_geo = parent.geometry()
@@ -74,7 +75,7 @@ class AboutDialog:
         title_layout = QHBoxLayout(title_bar)
         title_layout.setContentsMargins(15, 0, 15, 0)
 
-        title_lbl_tb = QLabel(f"About {APP_NAME}")
+        title_lbl_tb = QLabel(_("about.title"))
         title_lbl_tb.setFont(QFont("Poppins", 9, QFont.Bold))
         title_lbl_tb.setStyleSheet("color: #cccccc;")
         title_lbl_tb.setAlignment(Qt.AlignCenter)
@@ -136,22 +137,19 @@ class AboutDialog:
         desc_layout.setContentsMargins(20, 5, 20, 0)
         desc_layout.setSpacing(0)
 
-        desc_lbl = QLabel(
-            "Download videos and audio from YouTube, Instagram, "
-            "TikTok, and many supported platforms."
-        )
+        desc_lbl = QLabel(_("about.desc"))
         desc_lbl.setFont(QFont("Poppins", 9))
         desc_lbl.setWordWrap(True)
         desc_lbl.setAlignment(Qt.AlignCenter)
         desc_layout.addWidget(desc_lbl)
         desc_layout.addSpacing(10)
 
-        sites_lbl = QLabel("Supported sites:")
+        sites_lbl = QLabel(_("about.supported_sites"))
         sites_lbl.setFont(QFont("Poppins", 9))
         sites_lbl.setAlignment(Qt.AlignCenter)
         desc_layout.addWidget(sites_lbl)
 
-        link_lbl = QLabel("yt-dlp Supported Sites")
+        link_lbl = QLabel(_("about.ytdlp_sites"))
         link_lbl.setFont(QFont("Poppins", 9))
         link_lbl.setAlignment(Qt.AlignCenter)
         link_lbl.setCursor(QCursor(Qt.PointingHandCursor))
@@ -170,7 +168,7 @@ class AboutDialog:
         pr_layout.setSpacing(0)
         pr_layout.setAlignment(Qt.AlignCenter)
 
-        pw_lbl = QLabel("Powered by ")
+        pw_lbl = QLabel(_("about.powered_by") + " ")
         pw_lbl.setFont(QFont("Poppins", 9))
         pr_layout.addWidget(pw_lbl)
 
@@ -203,7 +201,7 @@ class AboutDialog:
         cr_layout.setSpacing(0)
         cr_layout.setAlignment(Qt.AlignCenter)
 
-        cr_lbl = QLabel("Copyright \u00a9 2026 ")
+        cr_lbl = QLabel(_("about.copyright") + " ")
         cr_lbl.setFont(QFont("Poppins", 9))
         cr_layout.addWidget(cr_lbl)
 
@@ -219,7 +217,7 @@ class AboutDialog:
         layout.addWidget(desc_widget)
 
         # Support section
-        support_title = QLabel("Support Me On")
+        support_title = QLabel(_("about.support_me"))
         support_title.setFont(QFont("Poppins", 11, QFont.Bold))
         support_title.setAlignment(Qt.AlignCenter)
         support_title.setStyleSheet("background: transparent;")
@@ -269,7 +267,7 @@ class AboutDialog:
         layout.addWidget(logos_row)
 
         # Update button
-        update_btn = QPushButton("Check for update")
+        update_btn = QPushButton(_("about.check_update"))
         update_btn.setFixedSize(220, 35)
         update_btn.setCursor(QCursor(Qt.PointingHandCursor))
         update_btn.setFont(QFont("Poppins", 10, QFont.Bold))
@@ -308,7 +306,6 @@ class AboutDialog:
         dlg.exec()
 
         # Remove overlay when dialog closes
-        if hasattr(parent, 'central_widget'):
-            overlay.hide()
-            overlay.deleteLater()
+        overlay.hide()
+        overlay.deleteLater()
 

@@ -14,6 +14,7 @@ from app.config import (
 
 from app.utils.filesystem import sanitize_filename, get_extension_from_preset, get_unique_filename
 from app.utils.validation import validate_url
+from app.utils.localization import LocalizationManager, _
 from app.gui.workers import AnalysisWorker, DownloadController, ThumbnailController
 
 # Dialogs
@@ -85,6 +86,28 @@ class VidMuncherQtGUI(QMainWindow):
         self.setStyleSheet(f"""
             QMainWindow {{ border: none; background-color: transparent; }}
             QWidget {{ color: {TEXT_COLOR}; font-family: 'Poppins'; }}
+            QMenu {{
+                background-color: {HEADER_BG_COLOR};
+                color: {TEXT_COLOR};
+                border: 1px solid {BUTTON_COLOR};
+                border-radius: 6px;
+            }}
+            QMenu::item {{
+                background-color: transparent;
+                padding: 6px 20px 6px 20px;
+                margin: 2px 4px;
+                border-radius: 4px;
+            }}
+            QMenu::icon {{
+                padding-left: 10px;
+            }}
+            QMenu::item:selected {{
+                background-color: {BUTTON_COLOR};
+                color: {TEXT_COLOR};
+            }}
+            QMenu::item:disabled {{
+                color: #555555;
+            }}
         """)
 
         self.setup_fonts()
@@ -115,20 +138,19 @@ class VidMuncherQtGUI(QMainWindow):
         self.title_bar.close_btn.clicked.connect(self.close)
 
         self.central_widget = QWidget(self.main_widget)
+        self.central_widget.setObjectName("CentralWidget")
         self.central_widget.setFixedSize(WINDOW_WIDTH, WINDOW_HEIGHT)
         self.central_widget.setAttribute(Qt.WA_StyledBackground, True)
         self.central_widget.setStyleSheet(f"""
-            QWidget {{
+            QWidget#CentralWidget {{
                 background-color: {WINDOW_BG_COLOR};
+                border-bottom-left-radius: 10px;
+                border-bottom-right-radius: 10px;
                 border: none;
             }}
         """)
         main_layout.addWidget(self.central_widget)
 
-        # Instantiate panels. Do NOT size them to WINDOW_WIDTH/HEIGHT.
-        # Let them be size 0x0. Their children have absolute geometries
-        # relative to 0x0, which will land exactly where we want them
-        # on the central widget. This avoids invisible overlay issues.
         self.queue_panel = QueuePanel(self.central_widget)
         self.progress_panel = ProgressPanel(self.central_widget)
 
@@ -147,7 +169,7 @@ class VidMuncherQtGUI(QMainWindow):
             self.setWindowIcon(QIcon(icon_path))
 
     def setup_copyright(self):
-        self.copyright_label = QLabel(f"Copyright © 2026 - {APP_NAME} by Aprix Labs", self.central_widget)
+        self.copyright_label = QLabel(_("about.copyright") + f" - {APP_NAME} by Aprix Labs", self.central_widget)
         font = QFont("Poppins", 9)
         self.copyright_label.setFont(font)
         self.copyright_label.setStyleSheet(f"color: #76485D; background-color: transparent;")
@@ -191,9 +213,36 @@ class VidMuncherQtGUI(QMainWindow):
 
     @Slot(dict)
     def on_settings_saved(self, new_settings):
-        # Update queue panel if user changed defaults and nothing is currently analyzed?
-        # For now, just update the default download dir. We don't overwrite user selections mid-session unless needed.
-        pass
+        """Update Queue panel UI based on newly saved general settings."""
+        gen = new_settings.get("general", {})
+
+        # Override the values in the queue panel immediately
+        if "default_preset" in gen:
+            self.queue_panel.preset_combo.setCurrentText(gen["default_preset"])
+
+        if "default_encoder" in gen:
+            self.queue_panel.encoder_combo.setCurrentText(gen["default_encoder"])
+
+        if "download_dir" in gen:
+            if 'title' in self.analysis_manager.video_data:
+                self.update_preview_path()
+            else:
+                self.queue_panel.save_entry.setText(gen["download_dir"])
+
+        # Update dynamic translations on main window widgets
+        self.progress_panel.analyze_button.setText(_("buttons.analyze"))
+        self.progress_panel.download_button.setText(_("buttons.download"))
+        self.progress_panel.cancel_button.setText(_("buttons.cancel"))
+        self.queue_panel.preset_label.setText(_("main_ui.select_preset"))
+        self.queue_panel.reencode_label.setText(_("main_ui.codec"))
+        self.queue_panel.section_checkbox.setText(_("main_ui.download_section"))
+        self.queue_panel.save_label.setText(_("main_ui.save_location"))
+        self.queue_panel.browse_btn.setText(_("buttons.browse"))
+        self.queue_panel.url_entry.setPlaceholderText(_("main_ui.url_placeholder"))
+        self.queue_panel.video_info_placeholder.setText(_("main_ui.video_info_placeholder"))
+        self.queue_panel.thumbnail_placeholder.setText(_("main_ui.thumbnail"))
+        self.header_widget.subtitle_label.setText(_("app.subtitle"))
+        self.copyright_label.setText(_("about.copyright") + f" - {APP_NAME} by Aprix Labs")
 
     @Slot(str, str, str, str, str)
     def add_history_entry(self, title, url, final_path, preset, status):
@@ -220,7 +269,7 @@ class VidMuncherQtGUI(QMainWindow):
         title = self.analysis_manager.video_data['title']
         safe_title = sanitize_filename(title)
 
-        known_exts = {".mp4", ".mkv", ".webm", ".avi", ".m4v", ".wav", ".mp3", ".m4a"}
+        known_exts = {".mp4", ".mkv", ".webm", ".avi", ".m4v", ".wav", ".mp3", ".m4a", ".flac", ".ogg", ".aac"}
         while True:
             root, ext_part = os.path.splitext(safe_title)
             if ext_part.lower() in known_exts:
@@ -234,8 +283,18 @@ class VidMuncherQtGUI(QMainWindow):
         ext = get_extension_from_preset(preset, encoding_enabled, encoder_selection)
 
         filename_with_ext = f"{safe_title}.{ext}"
-        full_path_with_ext = os.path.join(DEFAULT_DOWNLOAD_PATH, filename_with_ext)
-        unique_full_path = get_unique_filename(full_path_with_ext)
+
+        # Read download directory from settings, fallback to DEFAULT_DOWNLOAD_PATH
+        download_dir = self.settings_manager.settings_mgr.get("general", "download_dir")
+        if not download_dir or not os.path.exists(download_dir):
+            download_dir = DEFAULT_DOWNLOAD_PATH
+
+        full_path_with_ext = os.path.join(download_dir, filename_with_ext)
+
+        # Replace backslashes with forward slashes for clean and consistent UI presentation
+        full_path_with_ext = os.path.normpath(full_path_with_ext).replace('\\', '/')
+
+        unique_full_path = get_unique_filename(full_path_with_ext).replace('\\', '/')
 
         self.queue_panel.save_entry.setText(unique_full_path)
 
@@ -261,12 +320,15 @@ class VidMuncherQtGUI(QMainWindow):
 
     def analyze_video(self):
         url = self.queue_panel.get_url()
-        if not url or url == Layout.URL_PLACEHOLDER.strip():
+        if not url:
+            from app.config.messages import Messages
+            self.progress_panel.set_error_message(Messages.URL_EMPTY)
             return
 
         is_valid = validate_url(url)
         if not is_valid:
-            self.progress_panel.set_error_message("Invalid URL format")
+            from app.config.messages import Messages
+            self.progress_panel.set_error_message(Messages.INVALID_URL)
             return
 
         self.progress_panel.set_button_states(analyze_enabled=False, download_enabled=False)
@@ -301,8 +363,9 @@ class VidMuncherQtGUI(QMainWindow):
         title = self.analysis_manager.video_data.get("title", "Unknown Title")
         encoder_selection = self.queue_panel.get_encoder()
 
-        if not url or url == Layout.URL_PLACEHOLDER.strip():
-            self.progress_panel.set_error_message("Please enter a valid URL")
+        if not url:
+            from app.config.messages import Messages
+            self.progress_panel.set_error_message(Messages.URL_EMPTY)
             return
 
         self.progress_panel.set_button_states(analyze_enabled=False, download_enabled=False)
@@ -342,14 +405,20 @@ class VidMuncherQtGUI(QMainWindow):
 
 def run():
     """Bootstrap Qt application"""
-    from app.config import YTDLP_PATH, FFMPEG_PATH, BIN_PATH
+    from app.config import YTDLP_PATH, FFMPEG_PATH, DENO_PATH, BIN_PATH
+    from app.config.settings import SettingsManager
 
     app = QApplication(sys.argv)
+
+    # Initialize localization using current language setting
+    settings = SettingsManager()
+    lang = settings.get("general", "language")
+    LocalizationManager.load_language(lang)
 
     if not BIN_PATH.exists():
         BIN_PATH.mkdir(parents=True, exist_ok=True)
 
-    missing = not YTDLP_PATH.exists() or not FFMPEG_PATH.exists()
+    missing = not YTDLP_PATH.exists() or not FFMPEG_PATH.exists() or not DENO_PATH.exists()
 
     if missing:
         dialog = SetupDialog()

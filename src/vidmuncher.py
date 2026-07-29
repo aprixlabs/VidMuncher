@@ -3,10 +3,13 @@
 import sys
 import os
 
-# Must be set before any app module is imported so config.py reads it correctly.
 if '--debug' in sys.argv:
     os.environ['VIDMUNCHER_DEBUG'] = '1'
     sys.argv.remove('--debug')
+
+if sys.platform.startswith('linux'):
+    if 'QT_LOGGING_RULES' not in os.environ:
+        os.environ['QT_LOGGING_RULES'] = 'qt.qpa.wayland.*=false'
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -18,7 +21,6 @@ from app.gui import run
 def main():
     """Main entry point for VidMuncher application"""
     try:
-        # Patch for Qt plugin path in venv
         from PySide6.QtCore import QCoreApplication
         site_packages = os.path.join(os.path.dirname(os.path.dirname(sys.executable)), 'Lib', 'site-packages')
         qt_plugins_path = os.path.join(site_packages, 'PySide6', 'plugins')

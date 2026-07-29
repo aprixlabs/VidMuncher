@@ -13,6 +13,8 @@ from PySide6.QtCore import Qt, QTimer, Signal, Slot, QObject
 from app.config import HEADER_BG_COLOR, BUTTON_COLOR
 
 
+from app.utils.localization import _
+
 class _SetupSignals(QObject):
     check_finished   = Signal(bool, str, str, str, str, str)
     progress         = Signal(str, int)
@@ -59,7 +61,7 @@ class SetupDialog(QDialog):
         title_layout = QHBoxLayout(title_bar)
         title_layout.setContentsMargins(15, 0, 15, 0)
 
-        title_lbl_tb = QLabel("First-time Setup")
+        title_lbl_tb = QLabel(_("setup.first_time_setup"))
         title_lbl_tb.setFont(QFont("Poppins", 9, QFont.Bold))
         title_lbl_tb.setStyleSheet("color: #cccccc;")
         title_lbl_tb.setAlignment(Qt.AlignCenter)
@@ -91,8 +93,9 @@ class SetupDialog(QDialog):
         layout.setSpacing(8)
         frame_layout.addWidget(content)
 
-        self.title_label = QLabel("Downloading Dependencies")
+        self.title_label = QLabel(_("setup.downloading_dependencies"))
         self.title_label.setFont(QFont("Poppins", 10, QFont.Bold))
+        self.title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.title_label)
 
         self.progress_bar = QProgressBar(self)
@@ -113,9 +116,10 @@ class SetupDialog(QDialog):
         self.progress_bar.setFixedHeight(12)
         layout.addWidget(self.progress_bar)
 
-        self.status_label = QLabel("Checking requirements...")
+        self.status_label = QLabel(_("setup.checking_requirements"))
         self.status_label.setFont(QFont("Poppins", 8))
         self.status_label.setStyleSheet("color: #cccccc;")
+        self.status_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.status_label)
 
         self._signals = _SetupSignals()
@@ -128,17 +132,31 @@ class SetupDialog(QDialog):
     def start_check(self):
         from app.core.updater import updater
         self.updater = updater
+        # Updater callback sends 8 args now:
+        # has_update, yt_local, yt_remote, ff_local, ff_remote, deno_local, deno_remote, err
         self.updater.check_updates(
-            lambda h, yl, yr, fl, fr, e:
-            self._signals.check_finished.emit(h, yl, yr, fl, fr, e or "")
+            lambda hu, yl, yr, fl, fr, dl, dr, e:
+            self._signals.check_finished.emit(hu, yl, yr, fl, fr, e or "")
         )
 
     @Slot(bool, str, str, str, str, str)
     def on_check_finished(self, has_update, yt_local, yt_remote, ff_local, ff_remote, error):
-        if has_update:
-            self.status_label.setText("Fetching yt-dlp & FFmpeg...")
+        import os
+        from app.config import YTDLP_PATH, FFMPEG_PATH, DENO_PATH
+
+        missing_binaries = not os.path.exists(YTDLP_PATH) or not os.path.exists(FFMPEG_PATH) or not os.path.exists(DENO_PATH)
+
+        if has_update or missing_binaries:
+            self.status_label.setText("Fetching components...")
             self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(0)
+
+            # If we hit API rate limit but binaries are missing, force download bypass
+            if missing_binaries and error:
+                self.updater._pending_updates['ytdlp'] = True
+                self.updater._pending_updates['ffmpeg'] = True
+                self.updater._pending_updates['deno'] = True
+
             self.updater.download_updates(
                 lambda msg, pct: self._signals.progress.emit(msg, pct),
                 lambda succ, msg: self._signals.download_finished.emit(succ, msg)
@@ -148,18 +166,31 @@ class SetupDialog(QDialog):
 
     @Slot(str, int)
     def on_progress(self, msg, pct):
-        self.status_label.setText(msg)
-        self.progress_bar.setValue(pct)
+        if msg:
+            self.status_label.setText(msg)
+        if pct is not None:
+            self.progress_bar.setValue(pct)
 
     @Slot(bool, str)
     def on_download_finished(self, success, msg):
-        if success:
-            self.accept()
+        import os
+        from app.config import YTDLP_PATH, FFMPEG_PATH, DENO_PATH
+
+        missing_binaries = not os.path.exists(YTDLP_PATH) or not os.path.exists(FFMPEG_PATH) or not os.path.exists(DENO_PATH)
+
+        if success and not missing_binaries:
+            self.status_label.setText("Setup complete!")
+            self.progress_bar.setValue(100)
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(1000, self.accept)
         else:
-            self.status_label.setText(f"Failed: {msg}")
-            self.status_label.setStyleSheet("color: #FF5050;")
+            self.status_label.setText("Setup failed. Please check internet connection.")
+            self.status_label.setStyleSheet("color: #FF5F56;")
             self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(0)
+
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(3000, self.reject)
 
     def closeEvent(self, event):
         try:

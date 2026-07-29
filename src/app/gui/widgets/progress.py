@@ -4,6 +4,8 @@ from PySide6.QtCore import Qt
 
 from app.config.ui_layout import Layout, BUTTON_COLOR, BUTTON_ACTIVE_COLOR, BUTTON_DISABLED_COLOR, HEADER_BG_COLOR, TEXT_COLOR
 
+from app.utils.localization import _
+
 class ProgressPanel:
     def __init__(self, parent_widget):
         self.parent_widget = parent_widget
@@ -35,14 +37,14 @@ class ProgressPanel:
             }}
         """
 
-        self.analyze_button = QPushButton("Analyze", self.parent_widget)
+        self.analyze_button = QPushButton(_("buttons.analyze"), self.parent_widget)
         self.analyze_button.setFont(bold_font)
         self.analyze_button.setCursor(Qt.PointingHandCursor)
         self.analyze_button.setStyleSheet(btn_style)
         self.analyze_button.setGeometry(Layout.ANALYZE_BUTTON_X, Layout.ANALYZE_BUTTON_Y,
                                         Layout.ANALYZE_BUTTON_WIDTH, Layout.ANALYZE_BUTTON_HEIGHT)
 
-        self.download_button = QPushButton("Download", self.parent_widget)
+        self.download_button = QPushButton(_("buttons.download"), self.parent_widget)
         self.download_button.setFont(bold_font)
         self.download_button.setCursor(Qt.PointingHandCursor)
         self.download_button.setStyleSheet(btn_style)
@@ -50,7 +52,7 @@ class ProgressPanel:
                                          Layout.DOWNLOAD_BUTTON_WIDTH, Layout.DOWNLOAD_BUTTON_HEIGHT)
         self.download_button.setEnabled(False)
 
-        self.cancel_button = QPushButton("Cancel", self.parent_widget)
+        self.cancel_button = QPushButton(_("buttons.cancel"), self.parent_widget)
         self.cancel_button.setFont(bold_font)
         self.cancel_button.setCursor(Qt.PointingHandCursor)
         self.cancel_button.setStyleSheet(btn_style)

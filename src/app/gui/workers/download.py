@@ -122,7 +122,7 @@ class DownloadController(QObject):
     def download_video(self, url, out_path, preset, encoding_enabled, download_section=None, title="Unknown Title", encoder_selection="Auto"):
         """Start downloading video"""
         # Normalize out_path to be extension-less
-        known_exts = {".mp4", ".mkv", ".webm", ".avi", ".m4v", ".wav", ".mp3", ".m4a"}
+        known_exts = {".mp4", ".mkv", ".webm", ".avi", ".m4v", ".wav", ".mp3", ".m4a", ".flac", ".ogg", ".aac"}
         while True:
             root_out, ext_out = os.path.splitext(out_path)
             if ext_out.lower() in known_exts:

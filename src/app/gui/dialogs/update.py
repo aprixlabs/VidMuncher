@@ -1,5 +1,7 @@
 from app.core.updater import updater
 
+from app.utils.localization import _
+
 class UpdateFlow:
     """
     Update GUI manager: version check, progress popup, result dialogs.
@@ -18,34 +20,53 @@ class UpdateFlow:
 
     def start_check(self, about_dialog):
         """Start async version check."""
-        from PySide6.QtCore import QObject, Signal
+        from PySide6.QtCore import QObject, Signal, QTimer
 
         class _Signaler(QObject):
-            sig = Signal(bool, str, str, str, str, str)
+            sig = Signal(bool, str, str, str, str, str, str, str)
 
         self._btn.setEnabled(False)
-        self._btn.setText("Checking for updates...")
+        self._btn.setText(_("about.checking_updates"))
+
+        # Setup dots animation
+        self._dots_count = 0
+        self._base_text = _("about.checking_updates").rstrip('.')
+
+        self._anim_timer = QTimer(self._btn)
+        self._anim_timer.setInterval(400)
+        self._anim_timer.timeout.connect(self._animate_dots)
+        self._anim_timer.start()
 
         signaler = _Signaler()
         signaler.sig.connect(
-            lambda hu, yl, yr, fl, fr, err:
-            self._on_check_result(hu, yl, yr, fl, fr, err, about_dialog)
+            lambda hu, yl, yr, fl, fr, dl, dr, err:
+            self._on_check_result(hu, yl, yr, fl, fr, dl, dr, err, about_dialog)
         )
         # Keep ref to prevent GC
         self._signaler = signaler
 
         updater.check_updates(
-            lambda hu, yl, yr, fl, fr, err: signaler.sig.emit(hu, yl, yr, fl, fr, err)
+            lambda hu, yl, yr, fl, fr, dl, dr, err: signaler.sig.emit(hu, yl, yr, fl, fr, dl, dr, err)
         )
 
     # Internal handlers
 
+    def _animate_dots(self):
+        self._dots_count = (self._dots_count + 1) % 4
+        dots = "." * self._dots_count
+        self._btn.setText(f"{self._base_text}{dots}")
+
     def _reset_btn(self):
+        if hasattr(self, '_anim_timer'):
+            self._anim_timer.stop()
+            self._anim_timer.deleteLater()
+            del self._anim_timer
+
         self._btn.setEnabled(True)
-        self._btn.setText("Check for update")
+        self._btn.setText(_("about.check_update"))
 
     def _on_check_result(self, has_update, yt_local, yt_remote,
-                         ff_local, ff_remote, error, about_dialog):
+                         ff_local, ff_remote, deno_local, deno_remote, error, about_dialog):
         from app.config import APP_VERSION
 
         if not about_dialog.isVisible():
@@ -53,10 +74,8 @@ class UpdateFlow:
 
         if error:
             self._show_message(
-                about_dialog, "Update Check Failed",
-                f"The application could not check for updates.\n"
-                f"Please verify your network connection and try again.\n\n"
-                f"Details: {error}",
+                about_dialog, _("about.update_check_failed"),
+                _("about.update_check_failed_msg").format(error),
                 "error"
             )
             self._reset_btn()
@@ -65,28 +84,30 @@ class UpdateFlow:
         if has_update:
             self._reset_btn()
             yt_text = (f"{yt_local} &rarr; {yt_remote}"
-                       if yt_local != yt_remote else f"{yt_local} (Up to date)")
+                       if yt_local != yt_remote else f"{yt_local} ({_('about.up_to_date')})")
             ff_text = (f"{ff_local} &rarr; {ff_remote}"
-                       if ff_local != ff_remote else f"{ff_local} (Up to date)")
+                       if ff_local != ff_remote else f"{ff_local} ({_('about.up_to_date')})")
+            deno_text = (f"{deno_local} &rarr; {deno_remote}"
+                         if deno_local != deno_remote else f"{deno_local} ({_('about.up_to_date')})")
             msg = (
                 f"<table border='0' cellspacing='0' cellpadding='2' align='center'>"
                 f"<tr><td align='right' style='font-weight: 500;'>VidMuncher</td><td width='15'></td><td align='left'>{APP_VERSION}</td></tr>"
                 f"<tr><td align='right' style='font-weight: 500;'>yt-dlp</td><td></td><td align='left'>{yt_text}</td></tr>"
                 f"<tr><td align='right' style='font-weight: 500;'>FFmpeg</td><td></td><td align='left'>{ff_text}</td></tr>"
-                f"</table><br>"
-                f"<div align='center'><b>Update now?</b></div>"
+                f"<tr><td align='right' style='font-weight: 500;'>Deno</td><td></td><td align='left'>{deno_text}</td></tr>"
+                f"</table>"
             )
 
             def on_yes():
                 self._btn.setEnabled(False)
-                self._btn.setText("Downloading updates...")
+                self._btn.setText(_("about.downloading_updates"))
                 self._show_update_progress(about_dialog)
 
-            self._show_message(about_dialog, "Update Available", msg, "ask", on_yes)
+            self._show_message(about_dialog, _("about.update_available"), msg, "ask", on_yes, ask_text=_('about.update_now'))
         else:
             self._show_message(
-                about_dialog, "Up to Date",
-                "VidMuncher and all dependencies are on their latest versions.",
+                about_dialog, _("about.up_to_date"),
+                _("about.up_to_date_msg"),
                 "info"
             )
             self._reset_btn()
@@ -139,7 +160,7 @@ class UpdateFlow:
         tb_layout = QHBoxLayout(title_bar)
         tb_layout.setContentsMargins(15, 0, 15, 0)
 
-        title_lbl = QLabel("Downloading Updates")
+        title_lbl = QLabel(_("setup.downloading_dependencies"))
         title_lbl.setFont(QFont("Poppins", 9, QFont.Bold))
         title_lbl.setStyleSheet("color: #cccccc;")
         title_lbl.setAlignment(Qt.AlignCenter)
@@ -171,22 +192,24 @@ class UpdateFlow:
         layout.setSpacing(5)
         frame_layout.addWidget(content)
 
-        title = QLabel("Downloading latest components...")
-        title.setFont(QFont("Poppins", 11, QFont.Bold))
+        title = QLabel(_("setup.downloading_latest"))
+        title.setFont(QFont("Poppins", 10, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
-        sub = QLabel("Please wait while yt-dlp and FFmpeg are being updated.")
-        sub.setFont(QFont("Poppins", 9))
+        sub = QLabel(_("setup.wait_update"))
+        sub.setFont(QFont("Poppins", 8))
         sub.setStyleSheet("color: #cccccc;")
         sub.setAlignment(Qt.AlignCenter)
-        layout.addWidget(sub)
-        layout.addSpacing(12)
+        sub.hide() # We hide this to match the SetupDialog style which only has one title label
+
+        layout.addSpacing(5)
 
         progress = QProgressBar()
-        progress.setFixedHeight(18)
+        progress.setFixedHeight(12)
         progress.setTextVisible(False)
-        progress.setRange(0, 0)
+        progress.setRange(0, 100)
+        progress.setValue(0)
         progress.setStyleSheet(f"""
             QProgressBar {{
                 border: none;
@@ -201,8 +224,9 @@ class UpdateFlow:
         layout.addWidget(progress)
         layout.addSpacing(8)
 
-        status_lbl = QLabel("Preparing...")
-        status_lbl.setFont(QFont("Poppins", 9))
+        status_lbl = QLabel(_("setup.preparing"))
+        status_lbl.setFont(QFont("Poppins", 8))
+        status_lbl.setStyleSheet("color: #cccccc;")
         status_lbl.setAlignment(Qt.AlignCenter)
         layout.addWidget(status_lbl)
 
@@ -210,7 +234,6 @@ class UpdateFlow:
             if updater.is_updating:
                 updater.cancel_update()
             self._reset_btn()
-            popup.done(0)
 
         popup.rejected.connect(on_popup_close)
 
@@ -221,17 +244,20 @@ class UpdateFlow:
         signals = UpdaterSignals()
 
         def on_progress(msg, pct):
-            status_lbl.setText(msg)
+            if msg:
+                status_lbl.setText(msg)
+            if pct is not None:
+                progress.setValue(pct)
 
         def on_complete(success, msg):
             self._reset_btn()
             if success:
                 QTimer.singleShot(200, lambda: popup.done(0))
                 QTimer.singleShot(
-                    250, lambda: self._show_message(about_dialog, "Update Complete", msg, "info")
+                    250, lambda: self._show_message(about_dialog, _("about.update_complete"), msg, "info")
                 )
             else:
-                status_lbl.setText(f"Failed: {msg}")
+                status_lbl.setText(f"{_('setup.update_fail_prefix')}{msg}")
 
         signals.progress.connect(on_progress)
         signals.complete.connect(on_complete)
@@ -245,7 +271,7 @@ class UpdateFlow:
         updater.download_updates(progress_cb, complete_cb)
         popup.exec()
 
-    def _show_message(self, parent, title, message, msg_type="info", on_yes=None):
+    def _show_message(self, parent, title, message, msg_type="info", on_yes=None, ask_text=None):
         """Frameless rounded dialog."""
         from PySide6.QtWidgets import (
             QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget, QFrame
@@ -253,6 +279,25 @@ class UpdateFlow:
         from PySide6.QtGui import QFont, QCursor
         from PySide6.QtCore import Qt
         from app.config import HEADER_BG_COLOR, TEXT_COLOR, BUTTON_COLOR, BUTTON_ACTIVE_COLOR, BUTTON_DISABLED_COLOR
+
+        # Apply dark overlay to parent (About dialog)
+        if hasattr(parent, 'findChild'):
+            about_frame = parent.findChild(QFrame, "MainFrame")
+            if about_frame:
+                overlay = QWidget(about_frame)
+                overlay.setGeometry(about_frame.rect())
+                overlay.setStyleSheet("background-color: rgba(0, 0, 0, 150); border-radius: 10px;")
+                overlay.show()
+            else:
+                overlay = QWidget(parent)
+                overlay.setGeometry(parent.rect())
+                overlay.setStyleSheet("background-color: rgba(0, 0, 0, 150); border-radius: 10px;")
+                overlay.show()
+        else:
+            overlay = QWidget(parent)
+            overlay.setGeometry(parent.rect())
+            overlay.setStyleSheet("background-color: rgba(0, 0, 0, 150); border-radius: 10px;")
+            overlay.show()
 
         dlg = QDialog(parent)
         # Center the dialog on top of the parent window
@@ -276,7 +321,7 @@ class UpdateFlow:
             QFrame#MainFrame {{
                 background-color: {HEADER_BG_COLOR};
                 border-radius: 10px;
-                
+
             }}
         """)
         main_layout.addWidget(main_frame)
@@ -336,7 +381,20 @@ class UpdateFlow:
         msg_lbl.setTextFormat(Qt.RichText)
         msg_lbl.setWordWrap(True)
         msg_lbl.setFixedWidth(310)
+
+        # Center the text unless it's the "Update Available" table which handles its own alignment
+        if msg_type != "ask":
+            msg_lbl.setAlignment(Qt.AlignCenter)
+
         layout.addWidget(msg_lbl)
+        layout.addStretch()
+
+        if msg_type == "ask" and ask_text:
+            ask_lbl = QLabel(f"<b>{ask_text}</b>")
+            ask_lbl.setFont(QFont("Poppins", 10))
+            ask_lbl.setStyleSheet(f"color: {TEXT_COLOR};")
+            ask_lbl.setAlignment(Qt.AlignCenter)
+            layout.addWidget(ask_lbl)
 
         btn_row = QHBoxLayout()
         btn_row.setAlignment(Qt.AlignCenter)
@@ -346,7 +404,7 @@ class UpdateFlow:
             QPushButton {{
                 background-color: {BUTTON_COLOR}; color: {TEXT_COLOR};
                 border: none; border-radius: 6px;
-                font-family: Poppins; font-weight: bold;
+                font-family: Poppins; font-weight: bold; font-size: 10pt;
             }}
             QPushButton:hover {{ background-color: {BUTTON_ACTIVE_COLOR}; }}
         """
@@ -354,20 +412,20 @@ class UpdateFlow:
             QPushButton {{
                 background-color: {BUTTON_DISABLED_COLOR}; color: {TEXT_COLOR};
                 border: none; border-radius: 6px;
-                font-family: Poppins; font-weight: bold;
+                font-family: Poppins; font-weight: bold; font-size: 10pt;
             }}
             QPushButton:hover {{ background-color: {BUTTON_ACTIVE_COLOR}; }}
         """
 
         if msg_type == "ask" and on_yes:
-            yes_btn = QPushButton("Yes")
-            yes_btn.setFixedSize(90, 35)
+            yes_btn = QPushButton(_("buttons.yes"))
+            yes_btn.setFixedSize(90, 26)
             yes_btn.setCursor(QCursor(Qt.PointingHandCursor))
             yes_btn.setStyleSheet(_ok_style)
             yes_btn.clicked.connect(lambda: (dlg.accept(), on_yes()))
 
-            no_btn = QPushButton("No")
-            no_btn.setFixedSize(90, 35)
+            no_btn = QPushButton(_("buttons.no"))
+            no_btn.setFixedSize(90, 26)
             no_btn.setCursor(QCursor(Qt.PointingHandCursor))
             no_btn.setStyleSheet(_cancel_style)
             no_btn.clicked.connect(dlg.reject)
@@ -375,8 +433,8 @@ class UpdateFlow:
             btn_row.addWidget(yes_btn)
             btn_row.addWidget(no_btn)
         else:
-            ok_btn = QPushButton("OK")
-            ok_btn.setFixedSize(90, 35)
+            ok_btn = QPushButton(_("buttons.ok"))
+            ok_btn.setFixedSize(90, 26)
             ok_btn.setCursor(QCursor(Qt.PointingHandCursor))
             ok_btn.setStyleSheet(_ok_style)
             ok_btn.clicked.connect(dlg.accept)
@@ -384,3 +442,7 @@ class UpdateFlow:
 
         layout.addLayout(btn_row)
         dlg.exec()
+
+        # Remove overlay after dialog is closed
+        overlay.hide()
+        overlay.deleteLater()

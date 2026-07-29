@@ -25,12 +25,14 @@ DEFAULT_SETTINGS = {
         "concurrent_downloads": 1,
         "rate_limit_mbps": 0,
         "proxy": "",
-        "use_cookies": False,
-        "browser_cookies": "chrome"
+        "cookie_mode": "none",        # "none", "browser", "file"
+        "browser_cookies": "chrome",
+        "cookie_file": ""
     },
     "advanced": {
         "ffmpeg_path": "",
         "ytdlp_path": "",
+        "deno_path": "",
         "debug_mode": False
     }
 }

@@ -4,7 +4,7 @@ import zipfile
 import tempfile
 import threading
 import shutil
-from app.config import BIN_PATH, YTDLP_PATH, FFMPEG_PATH
+from app.config import BIN_PATH, YTDLP_PATH, FFMPEG_PATH, DENO_PATH
 from app.utils.debug import debug_print
 
 import sys
@@ -14,17 +14,21 @@ if sys.platform == "win32":
     YTDLP_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
     FFMPEG_URL = "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
     FFMPEG_EXT = ".zip"
+    DENO_URL = "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip"
 else:
     YTDLP_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux"
     FFMPEG_URL = "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz"
     FFMPEG_EXT = ".tar.xz"
+    DENO_URL = "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip"
 
 CHUNK_SIZE = 65536  # 64 KB per read chunk
 
-def download_file(url, dest_path, cancel_event=None):
-    """Download file in chunks; abort on cancel_event."""
+def download_file(url, dest_path, cancel_event=None, progress_cb=None, base_pct=0, total_pct_range=30):
+    """Download file in chunks; abort on cancel_event. Report progress if callback given."""
     req = urllib.request.Request(url, headers={'User-Agent': 'VidMuncher-Updater/1.0'})
-    with urllib.request.urlopen(req) as response, open(dest_path, 'wb') as out_file:
+    with urllib.request.urlopen(req, timeout=30) as response, open(dest_path, 'wb') as out_file:
+        total_size = int(response.headers.get('content-length', 0))
+        downloaded = 0
         while True:
             if cancel_event and cancel_event.is_set():
                 raise InterruptedError("Download cancelled by user.")
@@ -32,12 +36,18 @@ def download_file(url, dest_path, cancel_event=None):
             if not chunk:
                 break
             out_file.write(chunk)
+            downloaded += len(chunk)
+            if progress_cb and total_size > 0:
+                # Calculate chunk percentage within the overall allowed range
+                pct = base_pct + int((downloaded / total_size) * total_pct_range)
+                progress_cb(None, pct)
 
 class DependencyUpdater:
     def __init__(self):
         self.is_updating = False
         self._cancel_event = threading.Event()
         self._partial_files = []
+        self._pending_updates = {'ytdlp': True, 'ffmpeg': True, 'deno': True}
 
     def cancel_update(self):
         """Signal update thread to stop; clean partials."""
@@ -54,7 +64,7 @@ class DependencyUpdater:
                 import json
                 import subprocess
 
-                debug_print("Updater: checking yt-dlp version from GitHub...")
+                debug_print("Updater: checking component versions from GitHub...")
                 req = urllib.request.Request(
                     "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest",
                     headers={'User-Agent': 'VidMuncher-Updater/1.0'}
@@ -75,7 +85,7 @@ class DependencyUpdater:
                     ff_published = ff_data.get('published_at', '')
                     if ff_published:
                         remote_ff_ver = ff_published[:10]
-                    
+
                 if os.path.exists(FFMPEG_PATH):
                     if ff_published:
                         from datetime import datetime, timezone
@@ -86,10 +96,41 @@ class DependencyUpdater:
                             local_ff_ver = datetime.fromtimestamp(local_time).strftime("%Y-%m-%d")
                             if remote_time > local_time + 3600:
                                 ffmpeg_needs_update = True
+                            # If our local extraction time is newer or the same day as remote, don't trigger downgrade
+                            elif local_ff_ver >= remote_ff_ver:
+                                local_ff_ver = remote_ff_ver
                         except Exception:
                             pass
                 else:
                     ffmpeg_needs_update = True
+
+                req_deno = urllib.request.Request(
+                    "https://api.github.com/repos/denoland/deno/releases/latest",
+                    headers={'User-Agent': 'VidMuncher-Updater/1.0'}
+                )
+                deno_needs_update = False
+                remote_deno_ver = "Unknown"
+                local_deno_ver = "Not installed"
+                with urllib.request.urlopen(req_deno) as response:
+                    deno_data = json.loads(response.read().decode('utf-8'))
+                    remote_deno_ver = deno_data.get('tag_name', 'Unknown')
+
+                if os.path.exists(DENO_PATH):
+                    try:
+                        creationflags = 0x08000000 if os.name == 'nt' else 0
+                        result = subprocess.run(
+                            [str(DENO_PATH), '--version'],
+                            capture_output=True, text=True, creationflags=creationflags
+                        )
+                        # deno --version outputs multiple lines, first line is like "deno 1.40.3 (release, x86_64-pc-windows-msvc)"
+                        first_line = result.stdout.split('\n')[0]
+                        local_deno_ver = 'v' + first_line.split(' ')[1]
+                        if local_deno_ver != remote_deno_ver:
+                            deno_needs_update = True
+                    except:
+                        pass
+                else:
+                    deno_needs_update = True
 
                 local_ver = "Not installed"
                 if os.path.exists(YTDLP_PATH):
@@ -103,12 +144,15 @@ class DependencyUpdater:
                     except:
                         pass
 
-                has_update = (local_ver != remote_ver) or ffmpeg_needs_update
-                debug_print(f"Updater: check done — yt-dlp local={local_ver!r} remote={remote_ver!r}, ffmpeg needs_update={ffmpeg_needs_update}")
-                result_callback(has_update, local_ver, remote_ver, local_ff_ver, remote_ff_ver, None)
+                has_update = (local_ver != remote_ver) or (local_ff_ver != remote_ff_ver) or (local_deno_ver != remote_deno_ver)
+                self._pending_updates['ytdlp'] = (local_ver != remote_ver)
+                self._pending_updates['ffmpeg'] = (local_ff_ver != remote_ff_ver)
+                self._pending_updates['deno'] = (local_deno_ver != remote_deno_ver)
+                debug_print(f"Updater: check done — yt-dlp local={local_ver!r} remote={remote_ver!r}, ffmpeg local={local_ff_ver!r} remote={remote_ff_ver!r}, deno local={local_deno_ver!r} remote={remote_deno_ver!r}")
+                result_callback(has_update, local_ver, remote_ver, local_ff_ver, remote_ff_ver, local_deno_ver, remote_deno_ver, None)
             except Exception as e:
                 debug_print(f"Updater: check failed — {e}")
-                result_callback(False, "Unknown", "Unknown", "Unknown", "Unknown", str(e))
+                result_callback(False, "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", "Unknown", str(e))
 
         threading.Thread(target=check_thread, daemon=True).start()
 
@@ -122,70 +166,104 @@ class DependencyUpdater:
         self._partial_files.clear()
 
         def update_thread():
+            from app.utils.localization import _
             try:
-                debug_print(f"Updater: starting download — yt-dlp from {YTDLP_URL}")
                 os.makedirs(BIN_PATH, exist_ok=True)
 
-                progress_callback("Downloading latest yt-dlp...", 10)
-                self._partial_files.append(str(YTDLP_PATH))
-                download_file(YTDLP_URL, str(YTDLP_PATH), self._cancel_event)
-                self._partial_files.clear()
-                progress_callback("yt-dlp updated successfully.", 40)
+                if self._pending_updates.get('ytdlp', True) or not os.path.exists(YTDLP_PATH):
+                    debug_print(f"Updater: starting download — yt-dlp from {YTDLP_URL}")
+                    progress_callback(_("setup.download_ytdlp"), 10)
+                    self._partial_files.append(str(YTDLP_PATH))
+                    download_file(YTDLP_URL, str(YTDLP_PATH), self._cancel_event, progress_callback, 10, 30)
+                    self._partial_files.clear()
+                    progress_callback(_("setup.ytdlp_success"), 40)
+                else:
+                    debug_print("Updater: skipping yt-dlp download (up to date)")
 
-                progress_callback("Downloading latest FFmpeg...", 50)
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    zip_path = os.path.join(temp_dir, f"ffmpeg{FFMPEG_EXT}")
-                    self._partial_files.append(str(FFMPEG_PATH))
-                    download_file(FFMPEG_URL, zip_path, self._cancel_event)
+                if self._pending_updates.get('ffmpeg', True) or not os.path.exists(FFMPEG_PATH):
+                    debug_print(f"Updater: starting download — ffmpeg from {FFMPEG_URL}")
+                    progress_callback(_("setup.download_ffmpeg"), 50)
+                    with tempfile.TemporaryDirectory() as temp_dir:
+                        zip_path = os.path.join(temp_dir, f"ffmpeg{FFMPEG_EXT}")
+                        self._partial_files.append(str(FFMPEG_PATH))
+                        download_file(FFMPEG_URL, zip_path, self._cancel_event, progress_callback, 50, 30)
 
-                    progress_callback("Extracting FFmpeg...", 80)
-                    
-                    if FFMPEG_EXT == ".zip":
-                        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                            ffmpeg_exe_path = None
-                            for file_info in zip_ref.infolist():
-                                if file_info.filename.endswith("bin/ffmpeg.exe"):
-                                    ffmpeg_exe_path = file_info.filename
-                                    break
+                        progress_callback(_("setup.extract_ffmpeg"), 80)
 
-                            if ffmpeg_exe_path:
-                                with zip_ref.open(ffmpeg_exe_path) as source:
+                        if FFMPEG_EXT == ".zip":
+                            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                                ffmpeg_exe_path = None
+                                for file_info in zip_ref.infolist():
+                                    if file_info.filename.endswith("bin/ffmpeg.exe"):
+                                        ffmpeg_exe_path = file_info.filename
+                                        break
+
+                                if ffmpeg_exe_path:
+                                    with zip_ref.open(ffmpeg_exe_path) as source:
+                                        with open(FFMPEG_PATH, "wb") as target:
+                                            shutil.copyfileobj(source, target)
+                                else:
+                                    raise Exception("FFmpeg binary not found in the downloaded zip archive.")
+                        elif FFMPEG_EXT == ".tar.xz":
+                            with tarfile.open(zip_path, "r:xz") as tar_ref:
+                                ffmpeg_bin_path = None
+                                for member in tar_ref.getmembers():
+                                    if member.name.endswith("bin/ffmpeg"):
+                                        ffmpeg_bin_path = member
+                                        break
+
+                                if ffmpeg_bin_path:
+                                    source = tar_ref.extractfile(ffmpeg_bin_path)
                                     with open(FFMPEG_PATH, "wb") as target:
                                         shutil.copyfileobj(source, target)
-                            else:
-                                raise Exception("FFmpeg binary not found in the downloaded zip archive.")
-                    elif FFMPEG_EXT == ".tar.xz":
-                        with tarfile.open(zip_path, "r:xz") as tar_ref:
-                            ffmpeg_bin_path = None
-                            for member in tar_ref.getmembers():
-                                if member.name.endswith("bin/ffmpeg"):
-                                    ffmpeg_bin_path = member
+                                else:
+                                    raise Exception("ffmpeg not found in the downloaded tar archive.")
+                else:
+                    debug_print("Updater: skipping ffmpeg download (up to date)")
+
+                if self._pending_updates.get('deno', True) or not os.path.exists(DENO_PATH):
+                    debug_print(f"Updater: starting download — deno from {DENO_URL}")
+                    progress_callback(_("setup.download_deno"), 85)
+                    with tempfile.TemporaryDirectory() as temp_dir:
+                        deno_zip = os.path.join(temp_dir, "deno.zip")
+                        self._partial_files.append(str(DENO_PATH))
+                        download_file(DENO_URL, deno_zip, self._cancel_event, progress_callback, 85, 10)
+
+                        progress_callback(_("setup.extract_deno"), 95)
+                        with zipfile.ZipFile(deno_zip, 'r') as zip_ref:
+                            deno_exe_path = None
+                            for file_info in zip_ref.infolist():
+                                if file_info.filename.endswith("deno.exe") or file_info.filename.endswith("deno"):
+                                    deno_exe_path = file_info.filename
                                     break
-                            
-                            if ffmpeg_bin_path:
-                                source = tar_ref.extractfile(ffmpeg_bin_path)
-                                with open(FFMPEG_PATH, "wb") as target:
-                                    shutil.copyfileobj(source, target)
+
+                            if deno_exe_path:
+                                with zip_ref.open(deno_exe_path) as source:
+                                    with open(DENO_PATH, "wb") as target:
+                                        shutil.copyfileobj(source, target)
                             else:
-                                raise Exception("ffmpeg not found in the downloaded tar archive.")
-                                
-                    if sys.platform != "win32":
-                        os.chmod(YTDLP_PATH, 0o755)
-                        os.chmod(FFMPEG_PATH, 0o755)
+                                raise Exception("Deno binary not found in the downloaded zip archive.")
+                else:
+                    debug_print("Updater: skipping deno download (up to date)")
+
+                if sys.platform != "win32":
+                    if os.path.exists(YTDLP_PATH): os.chmod(YTDLP_PATH, 0o755)
+                    if os.path.exists(FFMPEG_PATH): os.chmod(FFMPEG_PATH, 0o755)
+                    if os.path.exists(DENO_PATH): os.chmod(DENO_PATH, 0o755)
 
                 self._partial_files.clear()
-                progress_callback("Update complete!", 100)
-                debug_print("Updater: all dependencies updated successfully.")
-                complete_callback(True, "All dependencies updated successfully!")
+                progress_callback(_("setup.update_complete"), 100)
+                debug_print("Updater: all components updated successfully.")
+                complete_callback(True, _("setup.update_success"))
 
             except InterruptedError:
                 debug_print("Update cancelled — cleaning up partial files.")
                 self._cleanup_partial_files()
-                complete_callback(False, "Update cancelled.")
+                complete_callback(False, _("setup.update_cancelled"))
             except Exception as e:
                 debug_print(f"Update failed: {str(e)}")
                 self._cleanup_partial_files()
-                complete_callback(False, f"Update failed: {str(e)}")
+                complete_callback(False, str(e))
             finally:
                 self.is_updating = False
                 self._partial_files.clear()

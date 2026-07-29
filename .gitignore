@@ -47,6 +47,8 @@ bin/ffmpeg
 bin/ffmpeg.exe
 bin/yt-dlp
 bin/yt-dlp.exe
+bin/deno
+bin/deno.exe
 
 # Internal docs
 docs/
