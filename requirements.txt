@@ -10,5 +10,5 @@ PySide6>=6.11.1
 # Optional: memory monitoring in debug mode
 psutil>=5.9.0
 
-# Tools used for building and packaging only — not needed at runtime
+# Tools used for building and packaging only, not needed at runtime
 PyInstaller>=6.21.0

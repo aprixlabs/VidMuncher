@@ -11,14 +11,13 @@ class LocalizationManager:
     @classmethod
     def load_language(cls, lang_code: str):
         with cls._lock:
-            code = lang_code.lower()
-            if "indonesia" in code or code == "id":
-                code = "id"
-            else:
-                code = "en"
+            code = lang_code.lower().strip()
+            file_path = cls._lang_dir / f"{code}.json"
+            if not file_path.exists():
+                code = "en" # Fallback to English if translation missing
+                file_path = cls._lang_dir / f"{code}.json"
 
             cls._current_lang = code
-            file_path = cls._lang_dir / f"{code}.json"
             try:
                 if file_path.exists():
                     with open(file_path, "r", encoding="utf-8") as f:

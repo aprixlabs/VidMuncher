@@ -61,7 +61,7 @@ class SettingsDialog(QDialog):
         self.load_current_values()
 
     def setup_ui(self):
-        self.setWindowTitle("Settings")
+        self.setWindowTitle(_("settings.title"))
         self.setFixedSize(650, 480)
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -460,7 +460,7 @@ class SettingsDialog(QDialog):
         self.lang_combo = QComboBox()
         self.lang_combo.setItemDelegate(QStyledItemDelegate())
 
-        available_langs = ["English", "Indonesian"]
+        available_langs = ["English", "Indonesian", "Chinese", "Russian", "Arabic", "German", "Spanish", "French", "Hindi", "Italian", "Japanese", "Polish", "Portuguese", "Turkish"]
         self.lang_combo.addItems(sorted(available_langs))
 
         self.lang_combo.setStyleSheet(self._create_input_style())
@@ -787,7 +787,10 @@ class SettingsDialog(QDialog):
         self.enc_combo.setCurrentText(gen["default_encoder"])
 
         lang_map = {
-            "en": "English", "id": "Indonesian"
+            "en": "English", "id": "Indonesian", "zh": "Chinese", "ru": "Russian",
+            "ar": "Arabic", "de": "German", "es": "Spanish", "fr": "French",
+            "hi": "Hindi", "it": "Italian", "ja": "Japanese", "pl": "Polish",
+            "pt": "Portuguese", "tr": "Turkish"
         }
         current_lang = gen.get("language", "en")
         self.lang_combo.setCurrentText(lang_map.get(current_lang, "English"))
@@ -838,7 +841,10 @@ class SettingsDialog(QDialog):
             mode_text = "file"
 
         lang_reverse_map = {
-            "English": "en", "Indonesian": "id"
+            "English": "en", "Indonesian": "id", "Chinese": "zh", "Russian": "ru",
+            "Arabic": "ar", "German": "de", "Spanish": "es", "French": "fr",
+            "Hindi": "hi", "Italian": "it", "Japanese": "ja", "Polish": "pl",
+            "Portuguese": "pt", "Turkish": "tr"
         }
         selected_lang = lang_reverse_map.get(self.lang_combo.currentText(), "en")
 
