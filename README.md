@@ -21,10 +21,10 @@ I built this because a certain multi-billion dollar video editor throws a tantru
 ## What It Does
 
 - **Downloads videos** from YouTube and 1000+ other sites via yt-dlp. [View yt-dlp Supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
-- **Transcode to H.264, H.265, or AV1** — NVIDIA, AMD, Intel QuickSync, or CPU. Falls back silently if your GPU refuses to cooperate. I simplified the codec options because most video editors only support these.
+- **Transcode to H.264, H.265, or AV1** - NVIDIA, AMD, Intel QuickSync, or CPU. Falls back silently if your GPU refuses to cooperate. I simplified the codec options because most video editors only support these.
 - **Audio extraction** for when you just want the audio
-- **Download Sections** — clip a specific part of a video using timestamps (e.g., `*00:00:00-00:00:10`) without downloading the entire file
-- **Self-configuring** — downloads yt-dlp and FFmpeg automatically on first launch. No manual setup required
+- **Download Sections** - clip a specific part of a video using timestamps (e.g., `*00:00:00-00:00:10`) without downloading the entire file
+- **Self-configuring** - downloads yt-dlp and FFmpeg automatically on first launch. No manual setup required
 
 ## Getting Started
 
@@ -115,11 +115,11 @@ Personal use only. Don't download things you shouldn't. [GPL-3.0 License](LICENS
 
 ## Thanks To
 
-- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** — for doing the actual hard part
-- **[FFmpeg](https://ffmpeg.org)** — for doing the other actual hard part
-- **My video editor** — for being so picky about codecs that I had to build this
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - for doing the actual hard part
+- **[FFmpeg](https://ffmpeg.org)** - for doing the other actual hard part
+- **My video editor** - for being so picky about codecs that I had to build this
 
 ## Support VidMuncher
-Keep my throat from getting scratchy:D
+Keep my throat from getting scratchy :D
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/aprixlabs)
