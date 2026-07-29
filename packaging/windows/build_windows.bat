@@ -101,7 +101,7 @@ copy /y LICENSE.txt dist\windows\VidMuncher\ 2>nul
 
 echo Creating portable zip...
 for /f "delims=" %%a in ('python -c "import sys; sys.path.insert(0, 'src'); from app.config.app_info import APP_VERSION; print(APP_VERSION)"') do set APP_VERSION=%%a
-powershell -Command "Compress-Archive -Path 'dist\windows\VidMuncher\*' -DestinationPath 'dist\windows\VidMuncher-%APP_VERSION%-Windows-x64-Portable.zip' -Force"
+powershell -Command "Compress-Archive -Path 'dist\windows\VidMuncher' -DestinationPath 'dist\windows\VidMuncher-%APP_VERSION%-Windows-x64-Portable.zip' -Force"
 
 echo.
 echo Build successful!
