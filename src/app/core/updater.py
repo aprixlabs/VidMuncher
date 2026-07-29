@@ -164,11 +164,26 @@ class DependencyUpdater:
                     except:
                         pass
 
-                has_update = (local_ver != remote_ver) or (local_ff_ver != remote_ff_ver) or (local_deno_ver != remote_deno_ver) or (local_app_ver != remote_app_ver and remote_app_ver != "Unknown")
-                self._pending_updates['app'] = (local_app_ver != remote_app_ver and remote_app_ver != "Unknown")
-                self._pending_updates['ytdlp'] = (local_ver != remote_ver)
-                self._pending_updates['ffmpeg'] = (local_ff_ver != remote_ff_ver)
-                self._pending_updates['deno'] = (local_deno_ver != remote_deno_ver)
+                def is_newer(remote, local):
+                    if local == "Not installed" or remote == "Unknown": return True
+                    import re
+                    def parse(v): return [int(x) if x.isdigit() else x for x in re.split(r'[.-]', re.sub(r'^[vV]', '', str(v)))]
+                    try: return parse(remote) > parse(local)
+                    except: return remote != local
+
+                app_needs_update = is_newer(remote_app_ver, local_app_ver)
+                ytdlp_needs_update = is_newer(remote_ver, local_ver)
+                deno_needs_update = is_newer(remote_deno_ver, local_deno_ver)
+                
+                # FFmpeg has special handling already via ffmpeg_needs_update flag, 
+                # but we'll also apply the fallback logic just in case
+                ff_is_newer = ffmpeg_needs_update if "ffmpeg_needs_update" in locals() else is_newer(remote_ff_ver, local_ff_ver)
+
+                has_update = app_needs_update or ytdlp_needs_update or ff_is_newer or deno_needs_update
+                self._pending_updates['app'] = app_needs_update
+                self._pending_updates['ytdlp'] = ytdlp_needs_update
+                self._pending_updates['ffmpeg'] = ff_is_newer
+                self._pending_updates['deno'] = deno_needs_update
                 debug_print(f"Updater: check done — App local={local_app_ver!r} remote={remote_app_ver!r}, yt-dlp local={local_ver!r} remote={remote_ver!r}, ffmpeg local={local_ff_ver!r} remote={remote_ff_ver!r}, deno local={local_deno_ver!r} remote={remote_deno_ver!r}")
                 result_callback(has_update, local_app_ver, remote_app_ver, local_ver, remote_ver, local_ff_ver, remote_ff_ver, local_deno_ver, remote_deno_ver, None)
             except Exception as e:
