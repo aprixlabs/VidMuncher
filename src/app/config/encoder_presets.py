@@ -56,6 +56,21 @@ ENCODER_OPTIONS = [
     "AV1 (CPU)"
 ]
 
+def get_available_encoders(detected_gpus=None):
+    if not detected_gpus:
+        return [e for e in ENCODER_OPTIONS if "(CPU)" in e or e == "Auto"]
+
+    available = ["Auto"]
+    if "Nvidia" in detected_gpus:
+        available.extend([e for e in ENCODER_OPTIONS if "(Nvidia)" in e])
+    if "AMD" in detected_gpus:
+        available.extend([e for e in ENCODER_OPTIONS if "(AMD)" in e])
+    if "Intel" in detected_gpus:
+        available.extend([e for e in ENCODER_OPTIONS if "(Intel QuickSync)" in e])
+
+    available.extend([e for e in ENCODER_OPTIONS if "(CPU)" in e])
+    return available
+
 ENCODER_MAPPING = {
     "Auto": None,
     "H.264 (Nvidia)": {

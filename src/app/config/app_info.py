@@ -4,7 +4,7 @@ App identity constants.
 import os
 
 APP_NAME = "VidMuncher"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 APP_TITLE = f"{APP_NAME} {APP_VERSION}"
 
 # python vidmuncher.py --debug

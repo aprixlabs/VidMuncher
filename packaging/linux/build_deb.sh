@@ -8,7 +8,7 @@ cd "$(dirname "$0")/../.."
 
 APP_NAME="vidmuncher"
 APP_NAME_FORMAL="VidMuncher"
-VERSION="1.1.0"
+VERSION="1.1.1"
 ARCH="amd64"
 DEB_DIR_NAME="${APP_NAME}_${VERSION}_${ARCH}"
 BUILD_TMP="/tmp/vidmuncher_deb_build"

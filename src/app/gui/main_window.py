@@ -15,6 +15,7 @@ from app.config import (
 
 from app.utils.filesystem import sanitize_filename, get_extension_from_preset, get_unique_filename
 from app.utils.validation import validate_url
+from app.utils.hardware import detect_system_gpus
 from app.utils.localization import LocalizationManager, _
 from app.gui.workers import AnalysisWorker, DownloadController, ThumbnailController
 
@@ -59,6 +60,12 @@ class VidMuncherQtGUI(QMainWindow):
         self.history_manager = HistoryDialog(self)
         self.about_manager = AboutDialog(self)
         self.settings_manager = SettingsManagerDialog(self)
+
+        gpus = self.settings_manager.settings_mgr.get("advanced", "detected_gpus")
+        if gpus is None:
+            gpus = detect_system_gpus()
+            self.settings_manager.settings_mgr.set("advanced", "detected_gpus", gpus)
+            self.settings_manager.settings_mgr.save()
 
         self.setup_ui()
         self.connect_signals()
