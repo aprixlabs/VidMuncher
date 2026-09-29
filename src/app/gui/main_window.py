@@ -68,6 +68,12 @@ class VidMuncherQtGUI(QMainWindow):
             self.settings_manager.settings_mgr.save()
 
         self.setup_ui()
+
+        initial_dir = self.settings_manager.settings_mgr.get("general", "download_dir")
+        if not initial_dir or not os.path.exists(initial_dir):
+            initial_dir = DEFAULT_DOWNLOAD_PATH
+        self.queue_panel.save_entry.setText(os.path.normpath(initial_dir).replace('\\', '/'))
+
         self.connect_signals()
 
     def get_qfont(self, font_tuple):
