@@ -30,8 +30,12 @@ jobs:
         run: |
           if [[ "${RUNNER_DEBUG}" ]]; then set -x; fi
 
-          app_name=$(grep 'APP_NAME' src/app/config/app_info.py | sed -E 's/^.+APP_NAME\s*=\s*"([^"]+)".*$/\1/')
-          app_version=$(grep 'APP_VERSION' src/app/config/app_info.py | sed -E 's/^.+APP_VERSION\s*=\s*"([^"]+)".*$/\1/')
+          app_name=$(grep -E '^APP_NAME = ' src/app/config/app_info.py | cut -d'"' -f2)
+          app_version=$(grep -E '^APP_VERSION = ' src/app/config/app_info.py | cut -d'"' -f2)
+
+          # Remove any potential \r carriage returns if checked out with CRLF
+          app_name=${app_name//$'\r'/}
+          app_version=${app_version//$'\r'/}
 
           echo "appName=${app_name:-VidMuncher}" >> $GITHUB_OUTPUT
           echo "appVersion=${app_version:-1.0.0}" >> $GITHUB_OUTPUT
