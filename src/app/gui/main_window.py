@@ -62,8 +62,10 @@ class VidMuncherQtGUI(QMainWindow):
         self.settings_manager = SettingsManagerDialog(self)
 
         gpus = self.settings_manager.settings_mgr.get("advanced", "detected_gpus")
-        if gpus is None:
+        if not gpus:
             gpus = detect_system_gpus()
+            if not gpus:
+                gpus = ["CPU"]
             self.settings_manager.settings_mgr.set("advanced", "detected_gpus", gpus)
             self.settings_manager.settings_mgr.save()
 
