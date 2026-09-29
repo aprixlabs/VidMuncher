@@ -12,6 +12,7 @@ TRANSCODE_COMMON_ARGS = [
 
 DOWNLOAD_PRESETS = [
     "Best Quality",
+    "4320p",
     "2160p",
     "1440p",
     "1080p",
@@ -23,6 +24,22 @@ DOWNLOAD_PRESETS = [
     "Audio (m4a)",
     "Audio (flac)"
 ]
+
+def get_dynamic_presets(max_height=None):
+    audio_presets = [p for p in DOWNLOAD_PRESETS if "Audio" in p]
+
+    # We construct video_res by stripping 'p' from the standard video presets
+    video_res = [int(p.replace("p", "")) for p in DOWNLOAD_PRESETS if p.endswith("p")]
+
+    if max_height and max_height > 0:
+        # If the video has an unconventional max height (e.g. 800p), make sure we still include it if it's high
+        if max_height not in video_res and max_height >= 720:
+            video_res.append(max_height)
+            video_res.sort(reverse=True)
+
+        filtered = [f"{h}p" for h in video_res if h <= max_height]
+        return ["Best Quality"] + filtered + audio_presets
+    return list(DOWNLOAD_PRESETS)
 
 ENCODER_OPTIONS = [
     "Auto",

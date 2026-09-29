@@ -9,7 +9,8 @@ from app.config import (
     APP_NAME, APP_VERSION, APP_TITLE, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_BG_COLOR,
     HEADER_BG_COLOR, TEXT_COLOR, BUTTON_COLOR, BUTTON_ACTIVE_COLOR,
     ICON_PNG_PATH, ICON_PATH, ABOUT_ICON_PATH, HISTORY_ICON_PATH,
-    FONT_REGULAR, FONT_MEDIUM, FONT_BOLD, FONT_BLACK, Layout, DEFAULT_DOWNLOAD_PATH
+    FONT_REGULAR, FONT_MEDIUM, FONT_BOLD, FONT_BLACK, Layout, DEFAULT_DOWNLOAD_PATH,
+    get_dynamic_presets, Messages
 )
 
 from app.utils.filesystem import sanitize_filename, get_extension_from_preset, get_unique_filename
@@ -340,13 +341,11 @@ class VidMuncherQtGUI(QMainWindow):
     def analyze_video(self):
         url = self.queue_panel.get_url()
         if not url:
-            from app.config.messages import Messages
             self.progress_panel.set_error_message(Messages.URL_EMPTY)
             return
 
         is_valid = validate_url(url)
         if not is_valid:
-            from app.config.messages import Messages
             self.progress_panel.set_error_message(Messages.INVALID_URL)
             return
 
@@ -359,15 +358,21 @@ class VidMuncherQtGUI(QMainWindow):
             formatted_info = self.analysis_manager.format_video_info()
             self.queue_panel.set_video_info(formatted_info)
 
+            max_height = 0
+            for f in data.get("formats", []):
+                if f.get("vcodec") != "none" and f.get("height"):
+                    max_height = max(max_height, f["height"])
+            self.queue_panel.update_presets(get_dynamic_presets(max_height))
+
             thumbnail_url = data.get("thumbnail", "")
             if thumbnail_url:
                 self.thumbnail_ctrl.download_thumbnail(thumbnail_url)
 
             self.update_preview_path()
-            self.update_progress("Ready to download", 0)
+            self.update_progress(Messages.READY_DOWNLOAD, 0)
             self.progress_panel.set_button_states(analyze_enabled=True, download_enabled=True)
         else:
-            self.progress_panel.set_error_message(err or "Failed to get video info")
+            self.progress_panel.set_error_message(err or Messages.FAILED_VIDEO_INFO)
             self.queue_panel.reset_info()
             self.progress_panel.set_button_states(analyze_enabled=True, download_enabled=False)
 
@@ -383,7 +388,6 @@ class VidMuncherQtGUI(QMainWindow):
         encoder_selection = self.queue_panel.get_encoder()
 
         if not url:
-            from app.config.messages import Messages
             self.progress_panel.set_error_message(Messages.URL_EMPTY)
             return
 
