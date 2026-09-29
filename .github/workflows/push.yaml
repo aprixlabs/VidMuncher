@@ -48,10 +48,13 @@ jobs:
         run: |
           shopt -s extglob nullglob
           cd release-assets
-          echo "### Checksums" > CHECKSUMS.txt
+
+          echo "## SHA256 Checksums" > ../CHECKSUMS.txt
+          echo "\`\`\`text" >> ../CHECKSUMS.txt
           for file in @(*.exe|*.zip|*.deb|*.rpm|*.tar.zst|*.tar.gz); do
-            sha256sum "$file" >> CHECKSUMS.txt
+            echo "$(sha256sum "$file" | cut -d " " -f 1)  $file" >> ../CHECKSUMS.txt
           done
+          echo "\`\`\`" >> ../CHECKSUMS.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -61,3 +64,4 @@ jobs:
           draft: true
           prerelease: false
           generate_release_notes: true
+          body_path: CHECKSUMS.txt
