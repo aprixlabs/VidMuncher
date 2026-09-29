@@ -9,7 +9,7 @@ from PySide6.QtGui import QFont, QCursor, QColor
 from app.config import (
     HEADER_BG_COLOR, WINDOW_BG_COLOR, TEXT_COLOR,
     BUTTON_COLOR, BUTTON_ACTIVE_COLOR, BUTTON_DISABLED_COLOR,
-    DOWNLOAD_PRESETS, ENCODER_OPTIONS, DROPDOWN_ARROW_PATH, UP_ARROW_PATH, CHECKMARK_ICON_PATH
+    DOWNLOAD_PRESETS, get_available_encoders, DROPDOWN_ARROW_PATH, UP_ARROW_PATH, CHECKMARK_ICON_PATH
 )
 from app.config.settings import SettingsManager
 from app.utils.cookies import get_installed_browsers
@@ -453,7 +453,8 @@ class SettingsDialog(QDialog):
 
         self.enc_combo = QComboBox()
         self.enc_combo.setItemDelegate(QStyledItemDelegate())
-        self.enc_combo.addItems(ENCODER_OPTIONS)
+        gpus = self.settings_mgr.get("advanced", "detected_gpus")
+        self.enc_combo.addItems(get_available_encoders(gpus))
         self.enc_combo.setStyleSheet(self._create_input_style())
         self.enc_combo.setFixedHeight(32)
 
@@ -762,7 +763,7 @@ class SettingsDialog(QDialog):
     def browse_dir(self):
         path = QFileDialog.getExistingDirectory(self, "Select Download Directory", self.dir_input.text())
         if path:
-            self.dir_input.setText(path)
+            self.dir_input.setText(path.replace('\\', '/'))
 
     def browse_exe(self, line_edit):
         import sys

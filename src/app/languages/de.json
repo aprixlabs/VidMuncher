@@ -126,11 +126,12 @@
     "age_restricted": "Altersbeschränktes Video",
     "failed_video_info": "Fehler beim Abrufen der Videoinformationen",
     "invalid_url": "Ungültige URL oder Netzwerkproblem",
-    "download_forbidden": "Download verboten (HTTP 403) - Versuchen Sie, Cookies zu verwenden",
+    "download_forbidden": "HTTP 403 Forbidden. Bitte yt-dlp updaten oder Cookies aktivieren.",
     "cookie_extraction_failed": "Fehler beim Lesen der Cookies. Schließen Sie den Browser oder versuchen Sie einen anderen.",
     "encoding_failed": "Kodierungsvorgang fehlgeschlagen!",
     "file_not_found": "Quelldatei für die Kodierung nicht gefunden!",
     "encoding_error": "Kodierungsfehler - Ausgabedatei nicht gefunden!",
-    "file_move_error": "Fehler beim Verschieben der Datei!"
+    "file_move_error": "Fehler beim Verschieben der Datei!",
+    "member_only_video": "Video nur für Mitglieder. Bitte aktiviere Browser-Cookies in den Einstellungen."
   }
 }

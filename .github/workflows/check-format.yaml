@@ -1,0 +1,15 @@
+name: Check Format
+on: workflow_call
+
+jobs:
+  check:
+    name: Check Python Syntax 🔎
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax Check
+        run: python -m compileall -q src/

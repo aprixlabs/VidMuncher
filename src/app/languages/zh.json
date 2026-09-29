@@ -126,11 +126,12 @@
     "age_restricted": "视频受年龄限制",
     "failed_video_info": "无法获取视频信息",
     "invalid_url": "链接无效或网络问题",
-    "download_forbidden": "下载被禁止 (HTTP 403) - 尝试使用 Cookie",
+    "download_forbidden": "HTTP 403 拒绝访问。请通过关于菜单更新 yt-dlp 或启用 Cookie。",
     "cookie_extraction_failed": "无法读取 Cookie。请关闭浏览器或尝试其他来源。",
     "encoding_failed": "转码过程失败！",
     "file_not_found": "找不到用于转码的源文件！",
     "encoding_error": "转码错误 - 找不到输出文件！",
-    "file_move_error": "移动文件失败！"
+    "file_move_error": "移动文件失败！",
+    "member_only_video": "会员专享视频。请在设置中启用浏览器 Cookie。"
   }
 }

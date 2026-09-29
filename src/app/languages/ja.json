@@ -126,11 +126,12 @@
     "age_restricted": "年齢制限のある動画です",
     "failed_video_info": "動画情報の取得に失敗しました",
     "invalid_url": "無効なURLまたはネットワークの問題です",
-    "download_forbidden": "ダウンロードが禁止されています (HTTP 403) - Cookieを試してください",
+    "download_forbidden": "HTTP 403 アクセス拒否。情報を開いてyt-dlpを更新するかCookieを有効にしてください。",
     "cookie_extraction_failed": "Cookieの読み取りに失敗しました。ブラウザを閉じるか別のもので試してください。",
     "encoding_failed": "エンコード処理に失敗しました！",
     "file_not_found": "エンコード用のソースファイルが見つかりません！",
     "encoding_error": "エンコードエラー - 出力ファイルが見つかりません！",
-    "file_move_error": "ファイルの移動に失敗しました！"
+    "file_move_error": "ファイルの移動に失敗しました！",
+    "member_only_video": "メンバー限定動画です。設定でブラウザのCookieを有効にしてください。"
   }
 }

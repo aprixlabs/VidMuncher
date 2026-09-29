@@ -12,6 +12,7 @@ TRANSCODE_COMMON_ARGS = [
 
 DOWNLOAD_PRESETS = [
     "Best Quality",
+    "4320p",
     "2160p",
     "1440p",
     "1080p",
@@ -23,6 +24,19 @@ DOWNLOAD_PRESETS = [
     "Audio (m4a)",
     "Audio (flac)"
 ]
+
+def get_dynamic_presets(max_height=None):
+    audio_presets = [p for p in DOWNLOAD_PRESETS if "Audio" in p]
+    video_res = [int(p.replace("p", "")) for p in DOWNLOAD_PRESETS if p.endswith("p")]
+
+    if max_height and max_height > 0:
+        if max_height not in video_res and max_height >= 720:
+            video_res.append(max_height)
+            video_res.sort(reverse=True)
+
+        filtered = [f"{h}p" for h in video_res if h <= max_height]
+        return ["Best Quality"] + filtered + audio_presets
+    return list(DOWNLOAD_PRESETS)
 
 ENCODER_OPTIONS = [
     "Auto",
@@ -38,6 +52,21 @@ ENCODER_OPTIONS = [
     "H.264 (CPU)",
     "AV1 (CPU)"
 ]
+
+def get_available_encoders(detected_gpus=None):
+    if not detected_gpus:
+        return [e for e in ENCODER_OPTIONS if "(CPU)" in e or e == "Auto"]
+
+    available = ["Auto"]
+    if "Nvidia" in detected_gpus:
+        available.extend([e for e in ENCODER_OPTIONS if "(Nvidia)" in e])
+    if "AMD" in detected_gpus:
+        available.extend([e for e in ENCODER_OPTIONS if "(AMD)" in e])
+    if "Intel" in detected_gpus:
+        available.extend([e for e in ENCODER_OPTIONS if "(Intel QuickSync)" in e])
+
+    available.extend([e for e in ENCODER_OPTIONS if "(CPU)" in e])
+    return available
 
 ENCODER_MAPPING = {
     "Auto": None,

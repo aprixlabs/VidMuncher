@@ -33,7 +33,8 @@ DEFAULT_SETTINGS = {
         "ffmpeg_path": "",
         "ytdlp_path": "",
         "deno_path": "",
-        "debug_mode": False
+        "debug_mode": False,
+        "detected_gpus": []
     }
 }
 

@@ -6,7 +6,8 @@ from PySide6.QtCore import Qt, QTime
 from app.config import (Layout, Fonts, HEADER_BG_COLOR, TEXT_COLOR, PLACEHOLDER_COLOR,
                         BUTTON_COLOR, BUTTON_ACTIVE_COLOR, BUTTON_DISABLED_COLOR,
                         DROPDOWN_ARROW_PATH, UP_ARROW_PATH, CHECKMARK_ICON_PATH,
-                        DOWNLOAD_PRESETS, ENCODER_OPTIONS)
+                        DOWNLOAD_PRESETS, get_available_encoders)
+from app.config.settings import SettingsManager
 
 from app.utils.localization import _
 
@@ -180,7 +181,8 @@ class QueuePanel:
 
         self.encoder_combo = QComboBox(self.parent_widget)
         self.encoder_combo.setItemDelegate(QStyledItemDelegate())
-        self.encoder_combo.addItems(ENCODER_OPTIONS)
+        gpus = SettingsManager().get("advanced", "detected_gpus")
+        self.encoder_combo.addItems(get_available_encoders(gpus))
         self.encoder_combo.setFont(combo_font)
         self.encoder_combo.setStyleSheet(combo_style)
         self.encoder_combo.setGeometry(Layout.REENCODE_COMBO_X, Layout.REENCODE_COMBO_Y,
@@ -301,6 +303,20 @@ class QueuePanel:
         self.thumbnail_label.hide()
         self.thumbnail_label.setPixmap(QPixmap())
         self.thumbnail_placeholder.show()
+        self.reset_presets()
+
+    def update_presets(self, preset_list):
+        current = self.preset_combo.currentText()
+        self.preset_combo.blockSignals(True)
+        self.preset_combo.clear()
+        self.preset_combo.addItems(preset_list)
+        idx = self.preset_combo.findText(current)
+        self.preset_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        self.preset_combo.blockSignals(False)
+        self.preset_combo.currentTextChanged.emit(self.preset_combo.currentText())
+
+    def reset_presets(self):
+        self.update_presets(DOWNLOAD_PRESETS)
 
     def get_url(self):
         return self.url_entry.text().strip()

@@ -2,7 +2,7 @@
 ; For details on Inno Setup Scripting see: https://jrsoftware.org/ishelp/
 
 #define AppName "VidMuncher"
-#define AppVersion "1.1.0"
+#define AppVersion "1.1.1"
 #define AppPublisher "Aprix Labs"
 #define AppURL "https://github.com/aprixlabs/VidMuncher"
 #define AppExeName "VidMuncher.exe"

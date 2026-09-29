@@ -1,0 +1,67 @@
+name: Push
+run-name: ${{ github.ref_name }} push run 🚀
+on:
+  push:
+    branches:
+      - dev
+      - main
+      - 'release/**'
+    tags:
+      - '*'
+permissions:
+  contents: write
+jobs:
+  check-format:
+    name: Check Formatting 🔍
+    uses: ./.github/workflows/check-format.yaml
+    permissions:
+      contents: read
+
+  build-project:
+    name: Build Project 🧱
+    uses: ./.github/workflows/build-project.yaml
+    secrets: inherit
+    permissions:
+      contents: read
+
+  create-release:
+    name: Create Release 🛫
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    needs: build-project
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check Release Tag ☑️
+        id: check
+        run: |
+          echo 'validTag=true' >> $GITHUB_OUTPUT
+
+      - name: Download Build Artifacts 📥
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate Checksums 🪪
+        run: |
+          shopt -s extglob nullglob
+          cd release-assets
+
+          echo "## SHA256 Checksums" > ../CHECKSUMS.txt
+          echo "\`\`\`text" >> ../CHECKSUMS.txt
+          for file in @(*.exe|*.zip|*.deb|*.rpm|*.tar.zst|*.tar.gz); do
+            echo "$(sha256sum "$file" | cut -d " " -f 1)  $file" >> ../CHECKSUMS.txt
+          done
+          echo "\`\`\`" >> ../CHECKSUMS.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/*
+          draft: true
+          prerelease: false
+          generate_release_notes: true
+          body_path: CHECKSUMS.txt

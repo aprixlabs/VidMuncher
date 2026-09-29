@@ -9,11 +9,13 @@ from app.config import (
     APP_NAME, APP_VERSION, APP_TITLE, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_BG_COLOR,
     HEADER_BG_COLOR, TEXT_COLOR, BUTTON_COLOR, BUTTON_ACTIVE_COLOR,
     ICON_PNG_PATH, ICON_PATH, ABOUT_ICON_PATH, HISTORY_ICON_PATH,
-    FONT_REGULAR, FONT_MEDIUM, FONT_BOLD, FONT_BLACK, Layout, DEFAULT_DOWNLOAD_PATH
+    FONT_REGULAR, FONT_MEDIUM, FONT_BOLD, FONT_BLACK, Layout, DEFAULT_DOWNLOAD_PATH,
+    get_dynamic_presets, Messages
 )
 
 from app.utils.filesystem import sanitize_filename, get_extension_from_preset, get_unique_filename
 from app.utils.validation import validate_url
+from app.utils.hardware import detect_system_gpus
 from app.utils.localization import LocalizationManager, _
 from app.gui.workers import AnalysisWorker, DownloadController, ThumbnailController
 
@@ -59,7 +61,21 @@ class VidMuncherQtGUI(QMainWindow):
         self.about_manager = AboutDialog(self)
         self.settings_manager = SettingsManagerDialog(self)
 
+        gpus = self.settings_manager.settings_mgr.get("advanced", "detected_gpus")
+        if not gpus:
+            gpus = detect_system_gpus()
+            if not gpus:
+                gpus = ["CPU"]
+            self.settings_manager.settings_mgr.set("advanced", "detected_gpus", gpus)
+            self.settings_manager.settings_mgr.save()
+
         self.setup_ui()
+
+        initial_dir = self.settings_manager.settings_mgr.get("general", "download_dir")
+        if not initial_dir or not os.path.exists(initial_dir):
+            initial_dir = DEFAULT_DOWNLOAD_PATH
+        self.queue_panel.save_entry.setText(os.path.normpath(initial_dir).replace('\\', '/'))
+
         self.connect_signals()
 
     def get_qfont(self, font_tuple):
@@ -304,30 +320,44 @@ class VidMuncherQtGUI(QMainWindow):
         preset = self.queue_panel.get_preset()
         extension = get_extension_from_preset(preset, encoding_enabled, encoder_selection)
 
-        current_path = self.queue_panel.save_entry.text()
+        current_path = self.queue_panel.save_entry.text().strip()
+        if current_path.endswith(".%(ext)s"):
+            current_path = current_path[:-len(".%(ext)s")]
+        dir_name = os.path.dirname(current_path) if current_path else None
         default_name = os.path.splitext(os.path.basename(current_path))[0] if current_path else "video"
+
+        if not dir_name or not os.path.exists(dir_name):
+            dir_name = self.settings_manager.settings_mgr.get("general", "download_dir")
+            if not dir_name or not os.path.exists(dir_name):
+                dir_name = DEFAULT_DOWNLOAD_PATH
+
+        display_extension = "mp4" if extension == "%(ext)s" else extension
+
+        initial_path = os.path.normpath(os.path.join(dir_name, f"{default_name}.{display_extension}")).replace('\\', '/')
 
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Save Video As",
-            f"{default_name}.{extension}",
-            f"Media Files (*.{extension})"
+            initial_path,
+            f"Media Files (*.{display_extension})"
         )
         if path:
             if not os.path.splitext(path)[1]:
-                path = f"{path}.{extension}"
-            self.queue_panel.save_entry.setText(path)
+                path = f"{path}.{display_extension}"
+
+            if extension == "%(ext)s" and path.endswith(".mp4"):
+                path = path[:-4] + ".%(ext)s"
+
+            self.queue_panel.save_entry.setText(os.path.normpath(path).replace('\\', '/'))
 
     def analyze_video(self):
         url = self.queue_panel.get_url()
         if not url:
-            from app.config.messages import Messages
             self.progress_panel.set_error_message(Messages.URL_EMPTY)
             return
 
         is_valid = validate_url(url)
         if not is_valid:
-            from app.config.messages import Messages
             self.progress_panel.set_error_message(Messages.INVALID_URL)
             return
 
@@ -340,15 +370,21 @@ class VidMuncherQtGUI(QMainWindow):
             formatted_info = self.analysis_manager.format_video_info()
             self.queue_panel.set_video_info(formatted_info)
 
+            max_height = 0
+            for f in data.get("formats", []):
+                if f.get("vcodec") != "none" and f.get("height"):
+                    max_height = max(max_height, f["height"])
+            self.queue_panel.update_presets(get_dynamic_presets(max_height))
+
             thumbnail_url = data.get("thumbnail", "")
             if thumbnail_url:
                 self.thumbnail_ctrl.download_thumbnail(thumbnail_url)
 
             self.update_preview_path()
-            self.update_progress("Ready to download", 0)
+            self.update_progress(Messages.READY_DOWNLOAD, 0)
             self.progress_panel.set_button_states(analyze_enabled=True, download_enabled=True)
         else:
-            self.progress_panel.set_error_message(err or "Failed to get video info")
+            self.progress_panel.set_error_message(err or Messages.FAILED_VIDEO_INFO)
             self.queue_panel.reset_info()
             self.progress_panel.set_button_states(analyze_enabled=True, download_enabled=False)
 
@@ -364,7 +400,6 @@ class VidMuncherQtGUI(QMainWindow):
         encoder_selection = self.queue_panel.get_encoder()
 
         if not url:
-            from app.config.messages import Messages
             self.progress_panel.set_error_message(Messages.URL_EMPTY)
             return
 

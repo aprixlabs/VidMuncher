@@ -1,0 +1,14 @@
+name: Dispatch
+run-name: Manual run 🚀
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  check-format:
+    name: Check Formatting 🔍
+    uses: ./.github/workflows/check-format.yaml
+
+  build-project:
+    name: Build Project 🧱
+    uses: ./.github/workflows/build-project.yaml
+    secrets: inherit

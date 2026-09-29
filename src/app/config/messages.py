@@ -69,6 +69,10 @@ class MessagesMeta(type):
         return _("errors.cookie_extraction_failed")
 
     @property
+    def MEMBER_ONLY_VIDEO(cls):
+        return _("errors.member_only_video")
+
+    @property
     def ENCODING_FAILED(cls):
         return _("errors.encoding_failed")
 
