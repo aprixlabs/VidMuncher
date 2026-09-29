@@ -77,6 +77,18 @@ def update_version(new_version):
         rpm_path.write_text(content, 'utf-8')
         print(f"Updated {rpm_path.name}")
 
+    # 6. Update Arch Linux script
+    arch_path = root / 'packaging' / 'linux' / 'build_arch.sh'
+    if arch_path.exists():
+        content = arch_path.read_text('utf-8')
+        content = re.sub(
+            r'(VERSION=")([^"]+)(")',
+            rf'\g<1>{new_version}\g<3>',
+            content
+        )
+        arch_path.write_text(content, 'utf-8')
+        print(f"Updated {arch_path.name}")
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("Usage: python scripts/update_version.py <new_version>")
