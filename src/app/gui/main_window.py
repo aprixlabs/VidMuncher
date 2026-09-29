@@ -313,7 +313,6 @@ class VidMuncherQtGUI(QMainWindow):
         extension = get_extension_from_preset(preset, encoding_enabled, encoder_selection)
 
         current_path = self.queue_panel.save_entry.text().strip()
-        # Strip yt-dlp template placeholder before passing to file dialog
         if current_path.endswith(".%(ext)s"):
             current_path = current_path[:-len(".%(ext)s")]
         dir_name = os.path.dirname(current_path) if current_path else None
@@ -324,7 +323,6 @@ class VidMuncherQtGUI(QMainWindow):
             if not dir_name or not os.path.exists(dir_name):
                 dir_name = DEFAULT_DOWNLOAD_PATH
 
-        # Strip %(ext)s from default extension so it saves clean in dialog
         display_extension = "mp4" if extension == "%(ext)s" else extension
 
         initial_path = os.path.normpath(os.path.join(dir_name, f"{default_name}.{display_extension}")).replace('\\', '/')
@@ -339,7 +337,6 @@ class VidMuncherQtGUI(QMainWindow):
             if not os.path.splitext(path)[1]:
                 path = f"{path}.{display_extension}"
 
-            # Put %(ext)s back for yt-dlp if it was auto/original format
             if extension == "%(ext)s" and path.endswith(".mp4"):
                 path = path[:-4] + ".%(ext)s"
 

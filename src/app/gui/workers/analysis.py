@@ -112,7 +112,6 @@ class AnalysisWorker(QObject):
                 res_str += f"{int(best_video['fps'])}"
 
             size = best_video.get("filesize_approx") or best_video.get("filesize")
-            # Estimate from bitrate × duration when yt-dlp omits filesize
             if not size and best_video.get("tbr") and data.get("duration"):
                 size = int(best_video["tbr"] * 1000 / 8 * data["duration"])
             size_str = f"(~{format_file_size(size)})" if size else "(Size unknown)"
