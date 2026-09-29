@@ -126,11 +126,12 @@
     "age_restricted": "Vidéo avec restriction d'âge",
     "failed_video_info": "Échec de la récupération des infos vidéo",
     "invalid_url": "URL invalide ou problème réseau",
-    "download_forbidden": "Téléchargement interdit (HTTP 403) - Essayez avec des cookies",
+    "download_forbidden": "HTTP 403 Interdit. Mettez à jour yt-dlp via À propos ou activez les Cookies.",
     "cookie_extraction_failed": "Impossible de lire les cookies. Fermez le navigateur ou essayez un autre.",
     "encoding_failed": "Échec du processus d'encodage !",
     "file_not_found": "Fichier source introuvable pour l'encodage !",
     "encoding_error": "Erreur d'encodage - Fichier de sortie introuvable !",
-    "file_move_error": "Échec du déplacement du fichier !"
+    "file_move_error": "Échec du déplacement du fichier !",
+    "member_only_video": "Vidéo réservée aux membres. Veuillez activer les Cookies du navigateur dans les paramètres."
   }
 }

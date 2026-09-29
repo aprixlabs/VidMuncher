@@ -127,6 +127,10 @@ class VideoAnalyzer:
         """Parse yt-dlp stderr to user-friendly messages."""
         if "Could not copy Chrome cookie database" in stderr or "Failed to decrypt with DPAPI" in stderr:
             return Messages.COOKIE_EXTRACTION_FAILED
+        elif "HTTP Error 403" in stderr or "Forbidden" in stderr:
+            return Messages.DOWNLOAD_FORBIDDEN
+        elif "registered users" in stderr or "members only" in stderr.lower():
+            return Messages.MEMBER_ONLY_VIDEO
         elif "This video is unavailable" in stderr:
             return Messages.VIDEO_UNAVAILABLE
         elif "Video unavailable" in stderr:

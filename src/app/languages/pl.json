@@ -126,11 +126,12 @@
     "age_restricted": "Wideo z ograniczeniem wiekowym",
     "failed_video_info": "Nie udało się pobrać informacji o wideo",
     "invalid_url": "Nieprawidłowy URL lub problem z siecią",
-    "download_forbidden": "Pobieranie zabronione (HTTP 403) — spróbuj użyć plików cookie",
+    "download_forbidden": "HTTP 403 Zabronione. Zaktualizuj yt-dlp przez menu O programie lub włącz ciasteczka.",
     "cookie_extraction_failed": "Nie udało się odczytać plików cookie. Zamknij przeglądarkę lub spróbuj innej.",
     "encoding_failed": "Proces kodowania nie powiódł się!",
     "file_not_found": "Nie znaleziono pliku źródłowego do kodowania!",
     "encoding_error": "Błąd kodowania — nie znaleziono pliku wyjściowego!",
-    "file_move_error": "Nie udało się przenieść pliku!"
+    "file_move_error": "Nie udało się przenieść pliku!",
+    "member_only_video": "Wideo tylko dla członków. Włącz ciasteczka przeglądarki w Ustawieniach."
   }
 }

@@ -126,11 +126,12 @@
     "age_restricted": "Yaş sınırlamalı video",
     "failed_video_info": "Video bilgisi alınamadı",
     "invalid_url": "Geçersiz URL veya ağ sorunu",
-    "download_forbidden": "İndirme Yasak (HTTP 403) - Çerez kullanmayı deneyin",
+    "download_forbidden": "HTTP 403 Yasak. Lütfen Hakkında menüsünden yt-dlp'yi güncelleyin veya Çerezleri etkinleştirin.",
     "cookie_extraction_failed": "Çerezler okunamadı. Tarayıcıyı kapatın veya başka birini deneyin.",
     "encoding_failed": "Kodlama İşlemi Başarısız!",
     "file_not_found": "Kodlama için kaynak dosya bulunamadı!",
     "encoding_error": "Kodlama Hatası - Çıktı dosyası bulunamadı!",
-    "file_move_error": "Dosya taşınamadı!"
+    "file_move_error": "Dosya taşınamadı!",
+    "member_only_video": "Yalnızca üyelere özel video. Lütfen Ayarlar'dan Çerezleri (Cookies) etkinleştirin."
   }
 }
