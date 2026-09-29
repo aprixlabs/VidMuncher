@@ -7,7 +7,7 @@ on:
       - main
       - 'release/**'
     tags:
-      - '*'
+      - 'v*'
 permissions:
   contents: write
 jobs:
@@ -51,7 +51,8 @@ jobs:
 
           echo "## SHA256 Checksums" > ../CHECKSUMS.txt
           echo "\`\`\`text" >> ../CHECKSUMS.txt
-          for file in @(*.exe|*.zip|*.deb|*.rpm|*.tar.zst|*.tar.gz); do
+          # Sort files alphabetically to match GitHub release assets order
+          for file in $(ls -1 @(*.exe|*.zip|*.deb|*.rpm|*.tar.zst|*.tar.gz) | sort -f); do
             echo "$(sha256sum "$file" | cut -d " " -f 1)  $file" >> ../CHECKSUMS.txt
           done
           echo "\`\`\`" >> ../CHECKSUMS.txt
