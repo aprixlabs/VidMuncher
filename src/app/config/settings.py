@@ -34,7 +34,7 @@ DEFAULT_SETTINGS = {
         "ytdlp_path": "",
         "deno_path": "",
         "debug_mode": False,
-        "detected_gpus": None
+        "detected_gpus": []
     }
 }
 
