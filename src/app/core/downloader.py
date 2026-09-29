@@ -218,7 +218,7 @@ class VideoDownloader:
                     # Check for stored error from monitor_download_progress
                     if hasattr(self, '_last_dl_error') and self._last_dl_error:
                         if "403" in self._last_dl_error or "Forbidden" in self._last_dl_error:
-                            error_msg = _("messages.download_forbidden")
+                            error_msg = Messages.DOWNLOAD_FORBIDDEN
                         else:
                             error_msg = f"{Messages.DOWNLOAD_FAILED}: {self._last_dl_error}"
                     else:
