@@ -153,7 +153,10 @@ jobs:
       - name: Build Arch 🧱
         run: |
           chmod +x packaging/linux/build_arch.sh
-          ./packaging/linux/build_arch.sh
+          # Arch makepkg refuses to run as root. Create a build user:
+          useradd -m builder
+          chown -R builder:builder .
+          su builder -c "./packaging/linux/build_arch.sh"
 
       - name: Upload Artifacts 📡
         uses: actions/upload-artifact@v4
