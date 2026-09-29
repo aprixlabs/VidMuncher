@@ -763,7 +763,7 @@ class SettingsDialog(QDialog):
     def browse_dir(self):
         path = QFileDialog.getExistingDirectory(self, "Select Download Directory", self.dir_input.text())
         if path:
-            self.dir_input.setText(path)
+            self.dir_input.setText(path.replace('\\', '/'))
 
     def browse_exe(self, line_edit):
         import sys

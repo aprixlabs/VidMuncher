@@ -61,4 +61,4 @@ FONT_MEDIUM = get_resource_path("assets/fonts/Poppins-Medium.ttf")
 FONT_BOLD = get_resource_path("assets/fonts/Poppins-Bold.ttf")
 FONT_BLACK = get_resource_path("assets/fonts/Poppins-Black.ttf")
 
-DEFAULT_DOWNLOAD_PATH = str(Path.home() / "Downloads")
+DEFAULT_DOWNLOAD_PATH = str(Path.home() / "Downloads").replace('\\', '/')
