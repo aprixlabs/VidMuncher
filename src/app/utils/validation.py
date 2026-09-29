@@ -1,16 +1,12 @@
 def validate_url(url):
-    """Check if string is supported video URL"""
-    if not url or url.strip() == "":
+    """Basic sanity check to ensure the string resembles a URL."""
+    if not url or not url.strip():
         return False
-    
+
     url = url.strip()
 
-    if url.startswith(('http://', 'https://', 'www.')):
+    # Minimal URL heuristic: must contain a dot (domain) and no spaces
+    if "." in url and " " not in url:
         return True
 
-    video_platforms = ['youtube.com', 'youtu.be', 'vimeo.com', 'dailymotion.com']
-    for platform in video_platforms:
-        if platform in url.lower():
-            return True
-    
     return False
